@@ -51,6 +51,12 @@ train.info()
 train["advertiser"].value_counts()
 train["click"].value_counts() # Only 1793 clicks
 
+data.groupby('opsys', {'CTR':data.aggregate.average('click')})
+
+
+# Unique values in each column
+train.T.apply(lambda x: x.nunique(), axis=1)
+
 ## ANALYSIS BY ADVERTISER
 train_by_advertiser = pd.DataFrame({'impressions': train.groupby('advertiser').size()}).reset_index() # Total Impressions
 train_by_advertiser = train_by_advertiser.join(pd.DataFrame({'clicks': train[train['click'] == 1].groupby('advertiser').size()}).reset_index(drop=True)) # Total Clicks
@@ -109,6 +115,10 @@ plt.legend()
 
 plt.show() # Quite a discrepancy in bid and paid prices
 
+# TO DO
+# - Add boxplots
+# - Various graphs of different CPM/eCPC subsets (check the paper https://arxiv.org/pdf/1407.7073.pdf)
+# - Furt
+
 
 ############################## END ##################################
-
