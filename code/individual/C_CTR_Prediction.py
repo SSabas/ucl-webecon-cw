@@ -35,3 +35,10 @@ import sklearn
 train = pd.read_csv('./data/train.csv')
 test = pd.read_csv('./data/test.csv')
 validation = pd.read_csv('./data/validation.csv')
+
+
+#--------------------------------- FITTING ---------------------------------------#
+
+# Logistics regression
+# Decision trees
+# Field-aware Factorization Machines
