@@ -28,6 +28,7 @@ import os
 import csv
 import sys
 import matplotlib.pyplot as plt
+import ggplot
 import seaborn as sns
 
 #--------------------------------- GET DATA --------------------------------------#
@@ -59,11 +60,55 @@ train_by_advertiser['CPM'] = train_by_advertiser['cost']*1000/train_by_advertise
 train_by_advertiser['eCPC'] = train_by_advertiser['cost']/train_by_advertiser['clicks'] # Effective Cost-per-Click
 
 
-## ANALYSIS BY DAY/HOUR
+## ANALYSIS BY DAY
+train_by_weekday = pd.DataFrame({'impressions': train.groupby('weekday').size()}).reset_index() # Total Impressions
+train_by_weekday = train_by_weekday.join(pd.DataFrame({'clicks': train[train['click'] == 1].groupby('weekday').size()}).reset_index(drop=True)) # Total Clicks
+train_by_weekday['CTR'] = train_by_weekday['clicks']/train_by_weekday['impressions']*100 # Click-Through Rate
+train_by_weekday = train_by_weekday.join(pd.DataFrame({'cost': train.groupby(['weekday'])['payprice'].sum()}).reset_index(drop=True)/1000) # Total Pay/Cost
+train_by_weekday['CPM'] = train_by_weekday['cost']*1000/train_by_weekday['impressions'] # Cost per-mille (Cost per Thousand Impressions)
+train_by_weekday['eCPC'] = train_by_weekday['cost']/train_by_weekday['clicks'] # Effective Cost-per-Click
+
+## ANALYSIS BY HOUR
+train_by_hour = pd.DataFrame({'impressions': train.groupby('hour').size()}).reset_index() # Total Impressions
+train_by_hour = train_by_hour.join(pd.DataFrame({'clicks': train[train['click'] == 1].groupby('hour').size()}).reset_index(drop=True)) # Total Clicks
+train_by_hour['CTR'] = train_by_hour['clicks']/train_by_hour['impressions']*100 # Click-Through Rate
+train_by_hour = train_by_hour.join(pd.DataFrame({'cost': train.groupby(['hour'])['payprice'].sum()}).reset_index(drop=True)/1000) # Total Pay/Cost
+train_by_hour['CPM'] = train_by_hour['cost']*1000/train_by_hour['impressions'] # Cost per-mille (Cost per Thousand Impressions)
+train_by_hour['eCPC'] = train_by_hour['cost']/train_by_hour['clicks'] # Effective Cost-per-Click
 
 ## ANALYSIS OF SUCCESSFUL CLICKS
+train_only_clicks = train[train['click'] == 1]
+train_only_clicks.groupby('weekday').size()
+train_only_clicks.groupby('hour').size()
+train_only_clicks.groupby('advertiser').size()
+train_only_clicks.groupby('weekday').size()
 
 ## ANALYSIS ON PRICES
 
-# Difference between paid price and second best
+# Histograms of prices
+n, bins, patches = plt.hist(train['payprice'],  50, normed=1, facecolor='green', alpha=0.75, label='Paid Price')
+n, bins, patches = plt.hist(train['bidprice'], 50, normed=1, facecolor='red', alpha=0.75, label='Bid Price')
+n, bins, patches = plt.hist(train['slotprice'], 50, normed=1, facecolor='blue', alpha=0.75, label='Slot (Floor) Price')
+
+plt.xlabel('Price (Chinese Fen)')
+plt.ylabel('Probability')
+plt.title('Histogram of Prices')
+plt.grid(True)
+plt.legend()
+
+plt.show() # Quite a discrepancy in bid and paid prices
+
+# Histogram of differences
+n, bins, patches = plt.hist(train['bidprice']-train['payprice'],  50, normed=1, facecolor='green', alpha=0.75)
+
+plt.xlabel('Price (Chinese Fen)')
+plt.ylabel('Probability')
+plt.title('Histogram of Difference between Bid Price and Paid Price')
+plt.grid(True)
+plt.legend()
+
+plt.show() # Quite a discrepancy in bid and paid prices
+
+
+############################## END ##################################
 
