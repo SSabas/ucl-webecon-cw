@@ -19,24 +19,36 @@ Date:
   22/02/2018
 """
 
-#------------------------------ IMPORT LIBRARIES ---------------------------------#
+# ------------------------------ IMPORT LIBRARIES --------------------------------- #
 
-import numpy as np
 import pandas as pd
-import re
-import os
-import csv
-import sys
-import matplotlib.pyplot as plt
-import seaborn as sns
-import sklearn
-#--------------------------------- GET DATA --------------------------------------#
+from sklearn import preprocessing
 
-train = pd.read_csv('./data/train.csv')
-test = pd.read_csv('./data/test.csv')
-validation = pd.read_csv('./data/validation.csv')
+# -------------------- FUNCTIONS FOR FEATURE ENGINEERING -------------------------- #
 
-#-------------------- FUNCTIONS FOR FEATURE ENGINEERING --------------------------#
+
+def merge_datasets(train, validation, test):
+    """
+    Merges datasets for preprocessing
+    """
+    # Merge the datasets
+    data = [train, validation, test]
+    data = pd.concat(data)
+
+    return data
+
+
+def separate_datasets(merged, train, validation, test):
+    """
+    Separates preprocessed datasets
+    """
+
+    train = merged[:train.shape[0]]
+    validation = merged[train.shape[0]: train.shape[0]+validation.shape[0]]
+    test = merged[:-test.shape[0]]
+
+    return train, validation, test
+
 
 def separate_useragent(data):
     """
@@ -72,7 +84,6 @@ def add_features(data):
     return data
 
 
-
 def exclude_irrelevant_features(data, remove_columns = ['bidid', 'userid', 'IP',
                       'domain', 'url', 'urlid', 'slotid']):
     """
@@ -82,10 +93,6 @@ def exclude_irrelevant_features(data, remove_columns = ['bidid', 'userid', 'IP',
     data = data.drop(remove_columns, axis=1)
 
     return data
-
-
-train = add_features(train)
-train = exclude_irrelevant_features(train)
 
 
 def label_encoder(data, columns_for_enconding = ['slotvisibility', 'slotformat', 'creative', 'keypage']):
@@ -113,9 +120,6 @@ def label_encoder(data, columns_for_enconding = ['slotvisibility', 'slotformat',
     return data, inverse_transform_dict
 
 
-train, label_dictionary = label_encoder(train)
-
-
 def one_hot_encoding(data, columns_to_encode = ['weekday', 'hour', 'region',
                                                 'city', 'adexchange', 'slotvisibility',
                                                 'slotformat', 'creative', 'keypage',
@@ -129,9 +133,6 @@ def one_hot_encoding(data, columns_to_encode = ['weekday', 'hour', 'region',
     return data
 
 
-train = one_hot_encoding(train)
-
-
 def min_max_scaling(data, scale_columns = ['slotwidth', 'slotheight', 'slotprice',
                                            'slotarea']):
     """
@@ -141,7 +142,6 @@ def min_max_scaling(data, scale_columns = ['slotwidth', 'slotheight', 'slotprice
     data[scale_columns] = pd.DataFrame(mm.fit_transform(data[scale_columns]))
 
     return data
-
 
 
 ############################## END ##################################
