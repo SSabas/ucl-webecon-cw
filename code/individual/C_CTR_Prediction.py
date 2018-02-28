@@ -31,11 +31,35 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import roc_curve
 from sklearn.metrics import auc
 import matplotlib.pyplot as plt
+from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import RandomForestClassifier
 
 
 
 # --------------------------------- FITTING --------------------------------------- #
+
+# --- PLOT ROC CURVE
+
+def plot_ROC_curve(data, prediction):
+    """
+    Function to plot the ROC curve with AUC.
+    """
+
+    # Compute fpr, tpr, thresholds and roc auc
+    fpr, tpr, thresholds = roc_curve(data, prediction)
+    roc_auc = roc_auc_score(data, prediction)
+
+    # Plot ROC curve
+    plt.plot(fpr, tpr, label='ROC curve (area = %0.3f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], 'k--')  # random predictions curve
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.xlabel('False Positive Rate or (1 - Specifity)')
+    plt.ylabel('True Positive Rate or (Sensitivity)')
+    plt.title('Receiver Operating Characteristic')
+    plt.legend(loc="lower right")
+
+
 
 # --- LOGISTIC REGRESSION
 def logistic_model(train, validation, test, )
@@ -44,9 +68,9 @@ def logistic_model(train, validation, test, )
 logistic = LogisticRegression()
 
 # Parameter grid for hyperparameter tuning
-param_grid = {'C': [0.1, 1, 10],
-              'penalty': ['l1','l2'],
-              'class_weight': ['balanced', 'unbalanced'],
+param_grid = {'C': [1],
+              'penalty': ['l1'],
+              'class_weight': ['unbalanced'],
               'solver': ['saga'],
               'tol': [0.01],
               'max_iter': [2]}
@@ -55,11 +79,17 @@ param_grid = {'C': [0.1, 1, 10],
 scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
 
 # Create model object
-model = GridSearchCV(LogisticRegression(), param_grid, cv=3, verbose=1,
+model = GridSearchCV(LogisticRegression(), param_grid, cv=3, verbose=2,
                      n_jobs = 3, scoring = scoring, refit ='AUC')
 
 # Fit the model
 model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+
+
+CV_pred = cross_val_predict(model, train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+
+cross_val_predict(clf, iris.data, iris.target, cv=10)
+
 
 
 # View best hyperparameters
@@ -87,27 +117,7 @@ confusion_matrix(validation['click'], prediction)
 roc_auc_score(validation['click'], prediction)
 
 
-
-# Compute fpr, tpr, thresholds and roc auc
-fpr, tpr, thresholds = roc_curve(validation['click'], prediction)
-fpr, tpr, thresholds = roc_curve(validation['click'], prediction_proba[:, 1])
-
-roc_auc = roc_auc_score(validation['click'], prediction)
-roc_auc = roc_auc_score(validation['click'], prediction_proba[:, 1])
-
-
-# Plot ROC curve
-plt.plot(fpr, tpr, label='ROC curve (area = %0.3f)' % roc_auc)
-plt.plot([0, 1], [0, 1], 'k--')  # random predictions curve
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.0])
-plt.xlabel('False Positive Rate or (1 - Specifity)')
-plt.ylabel('True Positive Rate or (Sensitivity)')
-plt.title('Receiver Operating Characteristic')
-plt.legend(loc="lower right")
-
-
-
+plot_ROC_curve(validation['click'], prediction_proba[:, 1])
 
 # --- DECISION TREES AND RANDOM FOREST
 # Decision trees
@@ -136,7 +146,7 @@ rfc = RandomForestClassifier(max_depth = learned_parameters["max_depth"]
                             ,n_estimators = 5000
                             ,n_jobs = 3)
 
-rf_model = RandomForestClassifier(n_estimators=10, oob_score = True, max_depth =10,
+rf_model = RandomForestClassifier(n_estimators=20, max_depth =10,
                                   min_samples_split = 5, min_samples_leaf = 3,
                                   max_features = 'sqrt', criterion ='entropy',
                                   verbose = True, n_jobs = 3)
@@ -147,7 +157,6 @@ print(rf_model.score(train.drop(['click','bidprice', 'payprice'], axis=1), train
 
 
 rf_predict = rf_model.predict(validation.drop(['click','bidprice', 'payprice'], axis=1))
-clf.oob_score_
 
 
 prediction = rf_model.predict(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
@@ -157,36 +166,54 @@ accuracy_score(validation['click'], prediction)
 confusion_matrix(validation['click'], prediction)
 roc_auc_score(validation['click'], prediction)
 
+# Plot ROC curve
+plot_ROC_curve(validation['click'], prediction_proba[:, 1])
 
 
-# Compute fpr, tpr, thresholds and roc auc
-fpr, tpr, thresholds = roc_curve(validation['click'], prediction)
-fpr, tpr, thresholds = roc_curve(validation['click'], prediction_proba[:, 1])
 
-roc_auc = roc_auc_score(validation['click'], prediction)
-roc_auc = roc_auc_score(validation['click'], prediction_proba[:, 1])
+# --- EXTREME RANDOM FOREST
 
+
+erf_model = ExtraTreesClassifier(n_estimators=50, max_depth=None, min_samples_split=2, random_state=0,
+                                 verbose = 2, n_jobs = 3, min_samples_leaf = 3, max_features = 'sqrt',
+                                 criterion='entropy', warm_start = True)
+
+
+erf_model = erf_model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+
+print(erf_model.score(train.drop(['click','bidprice', 'payprice'], axis=1), train['click']))
+
+
+erf_predict = erf_model.predict(validation.drop(['click','bidprice', 'payprice'], axis=1))
+
+
+prediction = erf_model.predict(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+prediction_proba = erf_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+accuracy_score(validation['click'], prediction)
+confusion_matrix(validation['click'], prediction)
+roc_auc_score(validation['click'], prediction)
 
 # Plot ROC curve
-plt.plot(fpr, tpr, label='ROC curve (area = %0.3f)' % roc_auc)
-plt.plot([0, 1], [0, 1], 'k--')  # random predictions curve
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.0])
-plt.xlabel('False Positive Rate or (1 - Specifity)')
-plt.ylabel('True Positive Rate or (Sensitivity)')
-plt.title('Receiver Operating Characteristic')
-plt.legend(loc="lower right")
-
-
-
+plot_ROC_curve(validation['click'], prediction_proba[:, 1])
 
 
 # --- GRADIENT BOOSTED TREES (XGBOOST)
 import xgboost
 
-xgb_model = xgboost.XGBClassifier(max_depth=3, n_estimators=1, learning_rate=0.05, silent = False,
-                                  n_jobs = 3)
 
+parameters = list(eta = 0.005,
+      max_depth = 15,
+      subsample = 0.5,
+      colsample_bytree = 0.5,
+      seed = 1,
+      eval_metric = "auc",
+      objective = "binary:logistic")
+
+xgb_model = xgboost.XGBClassifier(max_depth=3, n_estimators=5, learning_rate=0.05, silent = False,
+                                  n_jobs = 3, subsample = 0.5, objective='binary:logistic',
+                                  colsample_bytree=0.5, eval_metric = "auc", reg_alpha = 0.1,
+                                  reg_lambda = 0.1)
 
 xgb_model = xgb_model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
 
@@ -203,28 +230,11 @@ accuracy_score(validation['click'], prediction)
 confusion_matrix(validation['click'], prediction)
 roc_auc_score(validation['click'], prediction)
 
-
-
-# Compute fpr, tpr, thresholds and roc auc
-fpr, tpr, thresholds = roc_curve(validation['click'], prediction)
-fpr, tpr, thresholds = roc_curve(validation['click'], prediction_proba[:, 1])
-
-roc_auc = roc_auc_score(validation['click'], prediction)
-roc_auc = roc_auc_score(validation['click'], prediction_proba[:, 1])
-
-
 # Plot ROC curve
-plt.plot(fpr, tpr, label='ROC curve (area = %0.3f)' % roc_auc)
-plt.plot([0, 1], [0, 1], 'k--')  # random predictions curve
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.0])
-plt.xlabel('False Positive Rate or (1 - Specifity)')
-plt.ylabel('True Positive Rate or (Sensitivity)')
-plt.title('Receiver Operating Characteristic')
-plt.legend(loc="lower right")
+plot_ROC_curve(validation['click'], prediction_proba[:, 1])
+
 
 # --- FIELD-AWARE FACTORIZATION MACHINE
 
 
-# Naive Bayes
-
+# --- STACKING
