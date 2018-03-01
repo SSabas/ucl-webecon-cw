@@ -68,19 +68,26 @@ def logistic_model(train, validation, test, )
 logistic = LogisticRegression()
 
 # Parameter grid for hyperparameter tuning
-param_grid = {'C': [1],
+param_grid = {'C': [0.1, 1, 2, 5, 10],
+              'penalty': ['l1', 'l2'],
+              'class_weight': ['unbalanced', 'balanced'],
+              'solver': ['saga'],
+              'tol': [0.01],
+              'max_iter': [100]}
+
+param_grid = {'C': [0.1],
               'penalty': ['l1'],
               'class_weight': ['unbalanced'],
               'solver': ['saga'],
               'tol': [0.01],
-              'max_iter': [2]}
+              'max_iter': [100]}
 
 # Specify two scoring functions
 scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
 
 # Create model object
 model = GridSearchCV(LogisticRegression(), param_grid, cv=3, verbose=2,
-                     n_jobs = 3, scoring = scoring, refit ='AUC')
+                     n_jobs = 1, scoring = scoring, refit ='AUC')
 
 # Fit the model
 model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
@@ -99,8 +106,8 @@ print('Best C:', best_model.best_estimator_.get_params()['C'])
 # Create hyperparameter options
 hyperparameters = dict(C=C, penalty=penalty)
 
-model = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'balanced', verbose = True,
-                           max_iter = 10, n_jobs = 3, tol=0.001)
+model = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
+                           max_iter = 100, n_jobs = 3, tol=0.0025)
 
 param_grid = {'C': [0.1, 1, 10],
               'penalty': ['l1','l2'],
@@ -238,3 +245,73 @@ plot_ROC_curve(validation['click'], prediction_proba[:, 1])
 
 
 # --- STACKING
+from sklearn import model_selection
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+from mlxtend.classifier import StackingClassifier
+from mlxtend.classifier import StackingCVClassifier
+
+import xgboost
+
+import numpy as np
+
+random_state_nr = 500
+
+clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
+                           max_iter = 20, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
+clf2 = RandomForestClassifier(n_estimators=50, max_depth =10,
+                                  min_samples_split = 5, min_samples_leaf = 3,
+                                  max_features = 'sqrt', criterion ='entropy',
+                                  verbose = True, n_jobs = 3, random_state=random_state_nr)
+clf3 = ExtraTreesClassifier(n_estimators=20, max_depth=None, min_samples_split=2, random_state=random_state_nr,
+                                 verbose = 2, n_jobs = 3, min_samples_leaf = 3, max_features = 'sqrt',
+                                 criterion='entropy', warm_start = True)
+clf4 = xgboost.XGBClassifier(max_depth=20, n_estimators=5, learning_rate=0.05, silent = False,
+                                  n_jobs = 3, subsample = 0.5, objective='binary:logistic',
+                                  colsample_bytree=0.5, eval_metric = "auc", reg_alpha = 0.1,
+                                  reg_lambda = 0.1, random_state = random_state_nr)
+lr = LogisticRegression()
+sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3, clf4],
+                          meta_classifier=lr, use_probas = True)
+
+print('3-fold cross validation:\n')
+
+for clf, label in zip([clf1, clf2, clf3, clf4, sclf],
+                      ['Logistic Regression',
+                       'Random Forest',
+                       'Extreme Random Forest',
+                       'XGBoost',
+                       'StackingClassifier']):
+
+    scores = model_selection.cross_val_score(clf, train.drop(['click','bidprice', 'payprice'], axis=1), train['click'],
+                                              cv=3, scoring='roc_auc')
+    print("AUC: %0.5f (+/- %0.5f) [%s]"
+          % (scores.mean(), scores.std(), label))
+
+
+
+clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
+                          max_iter = 20, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
+clf2 = LogisticRegression(C=1.3, penalty='l2', solver='saga', class_weight = 'unbalanced', verbose = 2,
+                          max_iter = 20, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
+clf3 = RandomForestClassifier(n_estimators=30, max_depth =10,
+                              min_samples_split = 5, min_samples_leaf = 3,
+                              max_features = 'sqrt', criterion ='entropy',
+                              verbose = True, n_jobs = 3, random_state=random_state_nr)
+clf4 = ExtraTreesClassifier(n_estimators=30, max_depth=None, min_samples_split=2, random_state=random_state_nr,
+                            verbose = 2, n_jobs = 3, min_samples_leaf = 3, max_features = 'sqrt',
+                            criterion='entropy', warm_start = True)
+clf5 = xgboost.XGBClassifier(max_depth=10, n_estimators=30, learning_rate=0.05, silent = False,
+                             n_jobs = 3, subsample = 0.5, objective='binary:logistic',
+                             colsample_bytree=0.5, eval_metric = "auc", reg_alpha = 0.1,
+                             reg_lambda = 0.1, random_state = random_state_nr)
+lr = LogisticRegression()
+sclf = StackingClassifier(classifiers=[clf1, clf2, clf3, clf4, clf5],
+                          meta_classifier=lr, use_probas = True)
+
+scores = model_selection.cross_val_score(sclf, train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'],
+                                         cv=5, scoring='roc_auc')
+print("AUC: %0.5f (+/- %0.5f) [%s]"
+      % (scores.mean(), scores.std(), label))
