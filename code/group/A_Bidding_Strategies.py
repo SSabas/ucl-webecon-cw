@@ -151,7 +151,7 @@ ORTB_strategy(data, prediction, type = 'ORTB2', c=50, b=1, budget=625000)
 
 # --- Evaluate Strategies Using Different Parameter Combinations
 def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 625000,
-                        only_best = 'no', to_plot = 'yes', repeated_runs = 1):
+                        only_best = 'no', to_plot = 'yes', plot_3d = 'no', repeated_runs = 1):
 
     # Time it
     start_time = time.time()
@@ -220,9 +220,75 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
     output['CPM'] = output['budget']/ output['impressions_won'] * 1000
     output['CPC'] = output['budget']/ output['clicks_won']
 
-    print("Evaluation for %s type model finished in %.2f seconds." % (type, (time.time() - start_time)/360))
+    print("Evaluation for %s type model finished in %.2f seconds." % (type, (time.time() - start_time)))
 
     if to_plot == 'yes':
+
+        if plot_3d == 'yes':
+
+            # Get the grid for clicks
+            x1_clicks = np.linspace(results['parameter_1'].min(), results['parameter_1'].max(),
+                             len(results['parameter_1'].unique()))
+            y1_clicks = np.linspace(results['parameter_2'].min(), results['parameter_2'].max(),
+                             len(results['parameter_2'].unique()))
+            x2_clicks, y2_clicks = np.meshgrid(x1_clicks, y1_clicks)
+            z2_clicks = griddata((results['parameter_1'], results['parameter_2']), results['clicks_won'], (x2_clicks, y2_clicks),
+                          method='linear')
+
+            # Get the grid for CTR
+            x1_CTR = np.linspace(results['parameter_1'].min(), results['parameter_1'].max(),
+                             len(results['parameter_1'].unique()))
+            y1_CTR = np.linspace(results['parameter_2'].min(), results['parameter_2'].max(),
+                             len(results['parameter_2'].unique()))
+            x2_CTR, y2_CTR = np.meshgrid(x1_CTR, y1_CTR)
+            z2_CTR = griddata((results['parameter_1'], results['parameter_2']), results['CTR'], (x2_CTR, y2_CTR),
+                          method='linear')
+
+            # Set the parameters for plotting
+            plt.style.use("seaborn-whitegrid")
+            params = {'legend.fontsize': '8',
+                      'figure.figsize': (20,10),
+                      'axes.labelsize': '8',
+                      'axes.titlesize': '12',
+                      'xtick.labelsize': '6',
+                      'ytick.labelsize': '6'}
+
+            plt.rcParams.update(params)
+            plot_title = "Performance evaluation of %s model" % (type)
+
+            # Plot the first subplot
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 2, 1, projection='3d')
+            surf = ax.plot_surface(x2_clicks, y2_clicks, z2_clicks, rstride=1, cstride=1, cmap=cm.Blues,
+                                   linewidth=0, antialiased=False)
+
+            ax.set_xlabel('Parameter 1')
+            ax.set_ylabel('Parameter 2')
+            ax.set_zlabel('Clicks Won')
+            plt.tick_params(axis='both', which='major', labelsize=8)
+            plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+            ax.yaxis.major.formatter._useMathText = True
+            fig.colorbar(surf, shrink=0.5, aspect=10)
+            plt.title('Clicks')
+
+            # Plot the second subplot
+            ax = fig.add_subplot(1, 2, 2, projection='3d')
+            surf = ax.plot_surface(x2_CTR, y2_CTR, z2_CTR, rstride=1, cstride=1, cmap=cm.Reds,
+                                   linewidth=0, antialiased=False)
+
+            ax.set_xlabel('Parameter 1')
+            ax.set_ylabel('Parameter 2')
+            ax.set_zlabel('CTR')
+            plt.tick_params(axis='both', which='major', labelsize=8)
+            plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+            ax.yaxis.major.formatter._useMathText = True
+            fig.colorbar(surf, shrink=0.5, aspect=10)
+            plt.title('CTR')
+            plt.suptitle(plot_title, fontsize = 12)
+
+            plt.show()
+
+        else:
 
         # Set title and style
         plot_title = "Performance evaluation of %s model"% (type)
@@ -261,21 +327,75 @@ strategy_evaluation(validation1, prediction, parameter_range = [[100,400], [200,
 strategy_evaluation(validation1, prediction, parameter_range = [[100,400], [200,500]], type = 'random',  budget = 625000,
                         only_best = 'no', to_plot = 'yes', repeated_runs = 20)
 
-a =
-b = np.linspace(5e-7, 1, 1000)
-a = np.repeat(1, 50 100)
+b = np.tile(np.linspace(5e-9, 5e-5, 100), 100)
+a = np.repeat(np.linspace(50, 150, 100), 100)
 
 
 a = np.linspace(1, 50, 100)
 b = np.repeat(5e-7, len(a))
 
 
-strategy_evaluation(validation1, prediction, parameter_range = np.column_stack((a, b)), type = 'ORTB1',  budget = 625000,
+results = strategy_evaluation(validation1, prediction, parameter_range = np.column_stack((a, b)), type = 'ORTB1',  budget = 625000,
                         only_best = 'no', to_plot = 'yes', repeated_runs = 20)
 
-a = [1,2,3]
-b = [4,5,6]
-np.column_stack((a, b))
+
+
+import pandas as pd
+from scipy.interpolate import griddata
+# create 1D-arrays from the 2D-arrays
+X = np.arange(-5, 5, 0.25)
+Y = np.arange(-5, 5, 0.25)
+X, Y = np.meshgrid(X, Y)
+R = np.sqrt(X**2 + Y**2)
+Z = np.sin(R)
+x = X.reshape(1600)
+y = Y.reshape(1600)
+z = Z.reshape(1600)
+xyz = {'x': x, 'y': y, 'z': z}
+
+# put the data into a pandas DataFrame (this is what my data looks like)
+df = pd.DataFrame(xyz, index=range(len(xyz['x'])))
+
+# re-create the 2D-arrays
+x1 = np.linspace(df['x'].min(), df['x'].max(), len(df['x'].unique()))
+y1 = np.linspace(df['y'].min(), df['y'].max(), len(df['y'].unique()))
+x2, y2 = np.meshgrid(x1, y1)
+z2 = griddata((df['x'], df['y']), df['z'], (x2, y2), method='linear')
+
+
+x1 = np.linspace(results['parameter_1'].min(), results['parameter_1'].max(), len(results['parameter_1'].unique()))
+y1 = np.linspace(results['parameter_2'].min(), results['parameter_2'].max(), len(results['parameter_2'].unique()))
+x2, y2 = np.meshgrid(x1, y1)
+z2 = griddata((results['parameter_1'], results['parameter_2']), results['clicks_won'], (x2, y2), method='linear')
+
+plt.style.use("seaborn-whitegrid")
+
+fig = plt.figure()
+ax = fig.gca(projection='3d')
+surf = ax.plot_surface(x2, y2, z2, rstride=1, cstride=1, cmap=cm.coolwarm,
+    linewidth=0, antialiased=False)
+#ax.set_zlim(-1.01, 1.01)
+
+plot_title = "Performance evaluation of"
+ax.set_title(plot_title, fontsize=12)
+ax.set_xlabel('Parameter 1')
+ax.set_ylabel('Parameter 2')
+ax.set_zlabel('Clicks Won')
+
+
+
+#ax.zaxis.set_major_locator(LinearLocator(10))
+#ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+
+fig.colorbar(surf, shrink=0.5, aspect=10)
+plt.title('Performance evaluation of ORTB model')
+# ~~~~ MODIFICATION TO EXAMPLE ENDS HERE ~~~~ #
+
+plt.show()
+
+
+
 
 
 # --- Optimal Real Time Bidding (ORTB)
