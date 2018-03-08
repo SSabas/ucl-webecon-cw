@@ -105,6 +105,51 @@ def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter =
     return impressions, clicks, ads_auctioned
 
 
+# --- Optimal Real Time Bidding (ORTB)
+def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=625000):
+
+    """
+    ORTB1 formula:
+    sqrt(c/lambda * pctr + c**2) - c
+
+    ORTB2 formula:
+    term = (pCTR + np.sqrt(c * c * lambda_ * lambda_ + pCTR * pCTR)) / (c * lambda_)
+    bid = c * (term**(1 / 3) - term**(-1 / 3))
+    """
+
+    # Calculate bids based on the specified model
+    size = prediction.shape[0]
+
+    if type == 'ORTB1':
+        bids = np.sqrt(np.repeat(c, size) / np.repeat(b, size) * np.array(prediction) + np.repeat(c, size) ** 2) \
+               - np.repeat(c, size)
+    else:
+        term = (np.array(prediction) + np.sqrt(np.repeat(c, size) ** 2
+                                               * np.repeat(b, size) * 2 + np.repeat(c, size) ** 2)) / \
+               (np.repeat(c, size) * np.repeat(b, size))
+        bids = np.repeat(c, size) * (term ** (1 / 3) - term ** (-1 / 3))
+
+    # Get boolean vector of the bids won
+    bids_won = np.array(data['bidprice']) < bids
+
+    # Get cumulative sum conditional on the win
+    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+
+    # Get a boolean vector where bids cumsum is still under budget limit
+    valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
+
+    # Get evaluation metrics
+    impressions = np.sum(valid_bids * bids_won)
+    clicks = np.sum(valid_bids * bids_won * (np.array(data['click']) == 1))
+    ads_auctioned = np.sum(bids_won_cumsum<budget)
+
+    return impressions, clicks, ads_auctioned
+
+
+ORTB_strategy(data, prediction, type = 'ORTB2', c=50, b=1, budget=625000)
+
+
+# --- Evaluate Strategies Using Different Parameter Combinations
 def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 625000,
                         only_best = 'no', to_plot = 'yes', repeated_runs = 1):
 
@@ -112,13 +157,19 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
     start_time = time.time()
 
     # Initialise output
-    colnames = ['type', 'budget', 'parameter', 'total_auctions', 'ads_auctioned_for',
-                                   'impressions_won', 'clicks_won', 'CTR', 'CPM', 'CPC']
+    colnames = ['type', 'budget', 'parameter_1', 'parameter_2', 'total_auctions',
+                'ads_auctioned_for', 'impressions_won', 'clicks_won',
+                'CTR', 'CPM', 'CPC']
     output = pd.DataFrame(index=range(len(parameter_range)), columns=colnames)
 
     for i, parameter in zip(range(len(parameter_range)), parameter_range):
 
-        output['parameter'][i] = parameter
+        if len(parameter_range[0]) == 1:
+            output['parameter_1'][i] = parameter
+
+        else:
+            output['parameter_1'][i] = parameter[0]
+            output['parameter_2'][i] = parameter[1]
 
         if type == 'constant':
 
@@ -135,8 +186,8 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
 
             for run in range(0, repeated_runs):
 
-                impressions, clicks, ads_auctioned = random_bidding_strategy(data, 200,
-                                                                             parameter, budget=budget)
+                impressions, clicks, ads_auctioned = random_bidding_strategy(data, parameter[0],
+                                                                             parameter[1], budget=budget)
                 impressions_won.append(impressions)
                 clicks_won.append(clicks)
                 ads_auctioned_for.append(ads_auctioned)
@@ -144,6 +195,14 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             output['impressions_won'][i] = np.mean(impressions_won)
             output['clicks_won'][i] = np.mean(clicks_won)
             output['ads_auctioned_for'][i] = np.mean(ads_auctioned_for)
+
+        elif type[0:4] == 'ORTB':
+
+            # Iterate over the parameter range and complete the table
+            output['impressions_won'][i], \
+            output['clicks_won'][i], \
+            output['ads_auctioned_for'][i] = \
+                ORTB_strategy(data, prediction, type=type, c=parameter[0], b=parameter[1], budget=625000)
 
         else:
 
@@ -171,18 +230,18 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
 
         # Plot bidding performance
         fig, ax1 = plt.subplots()
-        ax1.plot(output.parameter, output.clicks_won, marker='o', markersize =2, color = 'royalblue', label='Clicks')
+        ax1.plot(output.parameter_1, output.clicks_won, marker='o', markersize =2, color = 'royalblue', label='Clicks')
         ax1.set_xlabel('Model Parameter')
         ax1.set_ylabel('Clicks Won', color='royalblue')
         ax1.set_title(plot_title, fontsize=12)
-        ax1.axvline(x=output.parameter[output.clicks_won.argmax()],
+        ax1.axvline(x=output.parameter_1[output.clicks_won.argmax()],
                     ymax=1, linewidth=1, color='royalblue', linestyle='--',
                     label='Parameter with Max Clicks')
 
         ax2 = ax1.twinx()
-        ax2.plot(output.parameter, output.CTR, marker='s', markersize =2, color='darkred', label='CTR')
+        ax2.plot(output.parameter_1, output.CTR, marker='s', markersize =2, color='darkred', label='CTR')
         ax2.set_ylabel('CTR', color='darkred')
-        ax2.axvline(x=output.parameter[output.CTR.argmax()],
+        ax2.axvline(x=output.parameter_1[output.CTR.argmax()],
                     ymax=1, linewidth=1, color='darkred', linestyle='--',
                     label='Parameter with Max CTR')
 
@@ -196,8 +255,31 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
 strategy_evaluation(validation1, prediction, parameter_range = np.linspace(200, 325, 100), type = 'random',  budget = 625000,
                         only_best = 'no', to_plot = 'yes')
 
-strategy_evaluation(validation1, prediction, parameter_range = np.linspace(250, 700, 100), type = 'random',  budget = 625000,
+strategy_evaluation(validation1, prediction, parameter_range = [[100,400], [200,500]], type = 'random',  budget = 625000,
+                        only_best = 'no', to_plot = 'no', repeated_runs = 20)
+
+strategy_evaluation(validation1, prediction, parameter_range = [[100,400], [200,500]], type = 'random',  budget = 625000,
                         only_best = 'no', to_plot = 'yes', repeated_runs = 20)
+
+a =
+b = np.linspace(5e-7, 1, 1000)
+a = np.repeat(1, 50 100)
+
+
+a = np.linspace(1, 50, 100)
+b = np.repeat(5e-7, len(a))
+
+
+strategy_evaluation(validation1, prediction, parameter_range = np.column_stack((a, b)), type = 'ORTB1',  budget = 625000,
+                        only_best = 'no', to_plot = 'yes', repeated_runs = 20)
+
+a = [1,2,3]
+b = [4,5,6]
+np.column_stack((a, b))
 
 
 # --- Optimal Real Time Bidding (ORTB)
+
+# --- Max eCPC
+
+# --- Gate Bidding
