@@ -23,6 +23,7 @@ Date:
 
 import pandas as pd
 import numpy as np
+import time
 
 
 # --------------------------------- FITTING --------------------------------------- #
@@ -46,13 +47,14 @@ def constant_bidding_strategy(data, constant, budget=625000):
 
     return impressions, clicks, ads_auctioned
 
+
 def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=625000, seed=500):
 
     # Generate bids
     bids = np.random.randint(lower_bound, upper_bound, len(data))
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < np.repeat(bids, len(data['bidprice']))
+    bids_won = np.array(data['bidprice']) < bids
 
     # Get cumulative sum conditional on the win
     bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
@@ -67,126 +69,135 @@ def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=625000,
 
     return impressions, clicks, ads_auctioned
 
-random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=625000, seed=500)
-
-constant_bidding_strategy(validation1, 120, budget=625000)
-
-    # Initialise output
-    impression = 0 # Bids won
-    clicks = 0 # Number of clicks for the bids won
-    cost = 0.0 # Accumulative cost
-
-    for click, pay_price in dataset[['click', 'payprice']].values:
-        if constant > pay_price:
-            impression += 1
-            clicks += click
-            cost += pay_price
-        if cost >= budget:
-            break
-
-    return impression, clicks, cost
-
-
-# --- RANDOM BIDDING STRATEGY
-def random_bidding(dataset, upper_bound, budget = 625000):
-
-    # Initialise output
-    impression = 0.0
-    clicks = 0
-    cost = 0.0
-
-    for click, pay_price in validation[['click', 'payprice']].values:
-        rand_no = randrange(upper_bound)
-        if rand_no > pay_price:
-            impression += 1
-            clicks += click
-            cost += pay_price
-        if cost >= budget:
-            break
-
-    return impression, clicks, cost
 
 # --- pCTR BASED BIDDING STRATEGIES (CRUDE PARAMETER ESTIMATION)
+def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter = 100, budget = 625000):
+
+    # Compute average CTR as a base metric
+    avgCTR = np.repeat(np.sum(data['click'] == 1) / data.shape[0], prediction.shape[0])
+
+    # Calculate bids based on the model
+
+    # For linear model
+    if type == 'linear':
+        bids = np.repeat(parameter, prediction.shape[0]) * (np.array(prediction) + avgCTR)
+
+    if type == 'square':
+        bids = np.repeat(parameter, prediction.shape[0]) * (np.array(prediction) / avgCTR) ** 2
+
+    if type == 'exponential':
+        bids = np.repeat(parameter, prediction.shape[0]) * np.exp(np.array(prediction) / avgCTR)
+
+    # Get boolean vector of the bids won
+    bids_won = np.array(data['bidprice']) < bids
+
+    # Get cumulative sum conditional on the win
+    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+
+    # Get a boolean vector where bids cumsum is still under budget limit
+    valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
+
+    # Get evaluation metrics
+    impressions = np.sum(valid_bids * bids_won)
+    clicks = np.sum(valid_bids * bids_won * (np.array(data['click']) == 1))
+    ads_auctioned = np.sum(bids_won_cumsum<budget)
+
+    return impressions, clicks, ads_auctioned
 
 
-# Average CTR
-avgCTR = (train.click.sum() / train.logtype.sum())
+def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 625000,
+                        only_best = 'no', to_plot = 'yes', repeated_runs = 1):
 
-avgCTR = 0.08
-# Bid generator
-def bid_gen(strat_type, lowerbound, upperbound, step):
-    bids = []
-    base_bids = np.arange(lower_bound, upper_bound, step)
+    # Time it
+    start_time = time.time()
 
-    for base_bid in base_bids:
-        for i in range(0, len(pred)):
-            bid = base_bid * (pred[i] / avgCTR)
-            bids.append(bid)
+    # Initialise output
+    colnames = ['type', 'budget', 'parameter', 'total_auctions', 'ads_auctioned_for',
+                                   'impressions_won', 'clicks_won', 'CTR', 'CPM', 'CPC']
+    output = pd.DataFrame(index=range(len(parameter_range)), columns=colnames)
 
-            if strat_type == 'linear':
-                bid = base_bid * (pred[i] / avgCTR)
-                bids.append(bid)
-            elif strat_type == 'nonlinear':
-                bid = base_bid * (pred[i] / avgCTR) ** 2
-                bids.append(bid)
-            elif strat_type == 'exponential':
-                bid = base_bid * np.exp(pred[i] / avgCTR)
-                bids.append(bid)
-    bid_chunks = [bids[x:x + len(pred)] for x in range(0, len(bids), len(pred))]
-    return bid_chunks, base_bids
+    for i, parameter in zip(range(len(parameter_range)), parameter_range):
+
+        output['parameter'][i] = parameter
+
+        if type == 'constant':
+
+            output['impressions_won'][i], \
+            output['clicks_won'][i], \
+            output['ads_auctioned_for'][i] = \
+                constant_bidding_strategy(data, parameter, budget=budget)
+
+        elif type == 'random':
+
+            impressions_won = []
+            clicks_won = []
+            ads_auctioned_for = []
+
+            for run in range(0, repeated_runs):
+
+                impressions, clicks, ads_auctioned = random_bidding_strategy(data, 200,
+                                                                             parameter, budget=budget)
+                impressions_won.append(impressions)
+                clicks_won.append(clicks)
+                ads_auctioned_for.append(ads_auctioned)
+
+            output['impressions_won'][i] = np.mean(impressions_won)
+            output['clicks_won'][i] = np.mean(clicks_won)
+            output['ads_auctioned_for'][i] = np.mean(ads_auctioned_for)
+
+        else:
+
+            # Iterate over the parameter range and complete the table
+            output['impressions_won'][i], \
+            output['clicks_won'][i], \
+            output['ads_auctioned_for'][i] = \
+                parametrised_bidding_strategy(data, prediction, type=type, parameter=parameter, budget=budget)
+
+    # Fill in last columns
+    output['type'] = type
+    output['budget'] = budget
+    output['total_auctions'] = prediction.shape[0]
+    output['CTR'] = output['clicks_won']/ output['impressions_won']
+    output['CPM'] = output['budget']/ output['impressions_won'] * 1000
+    output['CPC'] = output['budget']/ output['clicks_won']
+
+    print("Evaluation for %s type model finished in %.2f seconds." % (type, (time.time() - start_time)/360))
+
+    if to_plot == 'yes':
+
+        # Set title and style
+        plot_title = "Performance evaluation of %s model"% (type)
+        plt.style.use("seaborn-darkgrid")
+
+        # Plot bidding performance
+        fig, ax1 = plt.subplots()
+        ax1.plot(output.parameter, output.clicks_won, marker='o', markersize =2, color = 'royalblue', label='Clicks')
+        ax1.set_xlabel('Model Parameter')
+        ax1.set_ylabel('Clicks Won', color='royalblue')
+        ax1.set_title(plot_title, fontsize=12)
+        ax1.axvline(x=output.parameter[output.clicks_won.argmax()],
+                    ymax=1, linewidth=1, color='royalblue', linestyle='--',
+                    label='Parameter with Max Clicks')
+
+        ax2 = ax1.twinx()
+        ax2.plot(output.parameter, output.CTR, marker='s', markersize =2, color='darkred', label='CTR')
+        ax2.set_ylabel('CTR', color='darkred')
+        ax2.axvline(x=output.parameter[output.CTR.argmax()],
+                    ymax=1, linewidth=1, color='darkred', linestyle='--',
+                    label='Parameter with Max CTR')
+
+        lines = ax1.get_lines() + ax2.get_lines()
+        ax1.legend(lines, [line.get_label() for line in lines], loc='best', frameon=True)
+
+        plt.show()
+
+    return output
+
+strategy_evaluation(validation1, prediction, parameter_range = np.linspace(200, 325, 100), type = 'random',  budget = 625000,
+                        only_best = 'no', to_plot = 'yes')
+
+strategy_evaluation(validation1, prediction, parameter_range = np.linspace(250, 700, 100), type = 'random',  budget = 625000,
+                        only_best = 'no', to_plot = 'yes', repeated_runs = 20)
 
 
-# Bidding function
-def bidding(bids):
-    impression = 0.0
-    clicks = 0
-    cost = 0.0
-    budget = 6250000
-
-    bool_check = bids >= validation.payprice
-    for i in range(0, len(bool_check)):
-        if bool_check[i] == True:
-            impression += 1.0
-            clicks += validation.click[i]
-            cost += validation.payprice[i]
-        if cost >= budget:
-            break
-    return impression, clicks, cost
-
-
-# Apply different bidding strategies
-def bid_strategy(strat):
-    startbidgentime = time.time()
-
-    print("Starting %s bid generation" % strat)
-    bid_chunks, base_bids = bid_gen(strat, 2, 302, 2)
-    print(" %s big generation finished in %s minutes" % (strat, round(((time.time() - startbidgentime) / 60), 2)))
-
-    bid_df = pd.DataFrame()
-    bid_df['bid'] = base_bids
-    bid_df['bidding_strategy'] = strat
-
-    im = []
-    clks = []
-    ct = []
-
-    startbidtime = time.time()
-    print("Starting %s Bidding" % strat)
-
-    for bids in bid_chunks:
-        [imps, clicks, cost] = bidding(bids)
-        im.append(imps)
-        clks.append(clicks)
-        ct.append(cost)
-
-    bid_df['imps_won'] = im
-    bid_df.imps_won = bid_df.imps_won.astype(int)
-    bid_df['total_spend'] = ct
-    bid_df['clicks'] = clks
-    bid_df['CTR'] = (bid_df.clicks / bid_df.imps_won * 100).round(4).astype(str)
-    bid_df['CPM'] = (bid_df.total_spend / bid_df.imps_won * 1000).round(2).astype(str)
-    bid_df['CPC'] = (bid_df.total_spend / bid_df.clicks).round(2).astype(str)
-    print(" %s bidding finished in %s minutes" % (strat, round(((time.time() - startbidtime) / 60), 2)))
-    return bid_df
-
-# ---
+# --- Optimal Real Time Bidding (ORTB)
