@@ -107,21 +107,21 @@ print('Best C:', best_model.best_estimator_.get_params()['C'])
 hyperparameters = dict(C=C, penalty=penalty)
 
 model = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
-                           max_iter = 100, n_jobs = 3, tol=0.0025)
+                           max_iter = 10, n_jobs = 3, tol=0.0025)
 
 param_grid = {'C': [0.1, 1, 10],
               'penalty': ['l1','l2'],
               'class_weight': ['balanced', 'unbalanced']}
 
-model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+model = model.fit(train1.drop(['click','bidprice', 'payprice'], axis=1), train1['click'])
 
 
 prediction = model.predict(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
-prediction_proba = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+prediction_proba = model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
 
 accuracy_score(validation['click'], prediction)
 confusion_matrix(validation['click'], prediction)
-roc_auc_score(validation['click'], prediction)
+roc_auc_score(validation['click'], prediction_proba[:, 1])
 
 
 plot_ROC_curve(validation['click'], prediction_proba[:, 1])
@@ -255,8 +255,6 @@ from mlxtend.classifier import StackingCVClassifier
 
 import xgboost
 
-import numpy as np
-
 random_state_nr = 500
 
 clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
@@ -315,3 +313,80 @@ scores = model_selection.cross_val_score(sclf, train.drop(['click', 'bidprice', 
                                          cv=5, scoring='roc_auc')
 print("AUC: %0.5f (+/- %0.5f) [%s]"
       % (scores.mean(), scores.std(), label))
+
+# --- Factorization Machine
+from fastFM import als
+import scipy.sparse as sp
+
+train_X = train1.drop(['click', 'bidprice', 'payprice'], axis = 1)
+sparse_train_X = sp.csc_matrix(train_X)
+train_Y = train1['click']
+train_Y[train_Y==0] = -1
+
+validation_X = validation1.drop(['click', 'bidprice', 'payprice'], axis = 1)
+validation_Y = validation1['click']
+validation_Y[validation_Y==0] = -1
+sparse_validation_X = sp.csc_matrix(validation_X)
+
+fm = als.FMClassification(n_iter=10, init_stdev=0.1, rank=2, l2_reg_w=0.1, l2_reg_V=0.5)
+fm.fit(sparse_X, train_Y)
+
+
+# Plot the errors
+n_iter = 100
+l2_reg_w = 0.1
+l2_reg_V = 0.5
+rank = 5
+seed = 500
+step_size = 1
+values = np.arange(1, n_iter)
+
+fm = als.FMClassification(n_iter=0, l2_reg_w=l2_reg_w,
+                      l2_reg_V=l2_reg_V, rank=rank, random_state=seed)
+# Initalize coefs
+fm.fit(sparse_train_X, train_Y)
+
+roc_auc_train = []
+roc_auc_validation = []
+for i in range(1, n_iter):
+    print(i)
+    fm.fit(sparse_train_X, train_Y, n_more_iter=step_size)
+    y_pred = fm.predict(sparse_validation_X)
+    roc_auc_validation.append(roc_auc_score(validation_Y, fm.predict_proba(sparse_validation_X)))
+    roc_auc_train.append(roc_auc_score(train_Y, fm.predict_proba(sparse_train_X)))
+
+print('------- restart ----------')
+ƒ 
+roc_auc_validation_re = []
+roc_auc_train_re = []
+for i in values:
+    print(i)
+    fm = als.FMClassification(n_iter=i, l2_reg_w=l2_reg_w,
+                              l2_reg_V=l2_reg_V, rank=rank, random_state=seed)
+    fm.fit(sparse_train_X, train_Y)
+    roc_auc_validation_re.append(roc_auc_score(validation_Y, fm.predict_proba(sparse_validation_X)))
+    roc_auc_train_re.append(roc_auc_score(train_Y, fm.predict_proba(sparse_train_X)))
+
+from matplotlib import pyplot as plt
+
+x = np.arange(1, 199) * step_size
+
+with plt.style.context('fivethirtyeight'):
+    plt.plot(x, roc_auc_train, label='train')
+    plt.plot(x, roc_auc_validation, label='test')
+   # plt.plot(values, roc_auc_validation_re, label='train re', linestyle='--')
+   # plt.plot(values, roc_auc_train_re, label='test re', ls='--')
+plt.legend()
+plt.show()
+
+
+
+# Prediction
+
+y_pred = fm.predict(sparse_validation_X)
+roc_auc_score(validation_Y, y_pred)
+accuracy_score(validation_Y, y_pred)
+confusion_matrix(validation_Y, fm.predict(sparse_validation_X))
+
+
+fm.predict_proba(sparse_validation_X)
