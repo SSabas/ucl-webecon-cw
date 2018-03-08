@@ -254,7 +254,7 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
                       'ytick.labelsize': '6'}
 
             plt.rcParams.update(params)
-            plot_title = "Performance evaluation of %s model" % (type)
+            plot_title = "Performance evaluation of %s model"%(type)
 
             # Plot the first subplot
             fig = plt.figure()
@@ -290,31 +290,31 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
 
         else:
 
-        # Set title and style
-        plot_title = "Performance evaluation of %s model"% (type)
-        plt.style.use("seaborn-darkgrid")
+            # Set title and style
+            plot_title = "Performance evaluation of %s model"%(type)
+            plt.style.use("seaborn-darkgrid")
 
-        # Plot bidding performance
-        fig, ax1 = plt.subplots()
-        ax1.plot(output.parameter_1, output.clicks_won, marker='o', markersize =2, color = 'royalblue', label='Clicks')
-        ax1.set_xlabel('Model Parameter')
-        ax1.set_ylabel('Clicks Won', color='royalblue')
-        ax1.set_title(plot_title, fontsize=12)
-        ax1.axvline(x=output.parameter_1[output.clicks_won.argmax()],
-                    ymax=1, linewidth=1, color='royalblue', linestyle='--',
-                    label='Parameter with Max Clicks')
+            # Plot bidding performance
+            fig, ax1 = plt.subplots()
+            ax1.plot(output.parameter_1, output.clicks_won, marker='o', markersize =2, color = 'royalblue', label='Clicks')
+            ax1.set_xlabel('Model Parameter')
+            ax1.set_ylabel('Clicks Won', color='royalblue')
+            ax1.set_title(plot_title, fontsize=12)
+            ax1.axvline(x=output.parameter_1[output.clicks_won.argmax()],
+                        ymax=1, linewidth=1, color='royalblue', linestyle='--',
+                        label='Parameter with Max Clicks')
 
-        ax2 = ax1.twinx()
-        ax2.plot(output.parameter_1, output.CTR, marker='s', markersize =2, color='darkred', label='CTR')
-        ax2.set_ylabel('CTR', color='darkred')
-        ax2.axvline(x=output.parameter_1[output.CTR.argmax()],
-                    ymax=1, linewidth=1, color='darkred', linestyle='--',
-                    label='Parameter with Max CTR')
+            ax2 = ax1.twinx()
+            ax2.plot(output.parameter_1, output.CTR, marker='s', markersize =2, color='darkred', label='CTR')
+            ax2.set_ylabel('CTR', color='darkred')
+            ax2.axvline(x=output.parameter_1[output.CTR.argmax()],
+                        ymax=1, linewidth=1, color='darkred', linestyle='--',
+                        label='Parameter with Max CTR')
 
-        lines = ax1.get_lines() + ax2.get_lines()
-        ax1.legend(lines, [line.get_label() for line in lines], loc='best', frameon=True)
+            lines = ax1.get_lines() + ax2.get_lines()
+            ax1.legend(lines, [line.get_label() for line in lines], loc='best', frameon=True)
 
-        plt.show()
+            plt.show()
 
     return output
 
@@ -327,78 +327,12 @@ strategy_evaluation(validation1, prediction, parameter_range = [[100,400], [200,
 strategy_evaluation(validation1, prediction, parameter_range = [[100,400], [200,500]], type = 'random',  budget = 625000,
                         only_best = 'no', to_plot = 'yes', repeated_runs = 20)
 
-b = np.tile(np.linspace(5e-9, 5e-5, 100), 100)
-a = np.repeat(np.linspace(50, 150, 100), 100)
-
-
-a = np.linspace(1, 50, 100)
-b = np.repeat(5e-7, len(a))
+b = np.tile(np.linspace(5e-9, 5e-5, 100), 200)
+a = np.repeat(np.linspace(20, 200, 200), 100)
 
 
 results = strategy_evaluation(validation1, prediction, parameter_range = np.column_stack((a, b)), type = 'ORTB1',  budget = 625000,
-                        only_best = 'no', to_plot = 'yes', repeated_runs = 20)
-
-
-
-import pandas as pd
-from scipy.interpolate import griddata
-# create 1D-arrays from the 2D-arrays
-X = np.arange(-5, 5, 0.25)
-Y = np.arange(-5, 5, 0.25)
-X, Y = np.meshgrid(X, Y)
-R = np.sqrt(X**2 + Y**2)
-Z = np.sin(R)
-x = X.reshape(1600)
-y = Y.reshape(1600)
-z = Z.reshape(1600)
-xyz = {'x': x, 'y': y, 'z': z}
-
-# put the data into a pandas DataFrame (this is what my data looks like)
-df = pd.DataFrame(xyz, index=range(len(xyz['x'])))
-
-# re-create the 2D-arrays
-x1 = np.linspace(df['x'].min(), df['x'].max(), len(df['x'].unique()))
-y1 = np.linspace(df['y'].min(), df['y'].max(), len(df['y'].unique()))
-x2, y2 = np.meshgrid(x1, y1)
-z2 = griddata((df['x'], df['y']), df['z'], (x2, y2), method='linear')
-
-
-x1 = np.linspace(results['parameter_1'].min(), results['parameter_1'].max(), len(results['parameter_1'].unique()))
-y1 = np.linspace(results['parameter_2'].min(), results['parameter_2'].max(), len(results['parameter_2'].unique()))
-x2, y2 = np.meshgrid(x1, y1)
-z2 = griddata((results['parameter_1'], results['parameter_2']), results['clicks_won'], (x2, y2), method='linear')
-
-plt.style.use("seaborn-whitegrid")
-
-fig = plt.figure()
-ax = fig.gca(projection='3d')
-surf = ax.plot_surface(x2, y2, z2, rstride=1, cstride=1, cmap=cm.coolwarm,
-    linewidth=0, antialiased=False)
-#ax.set_zlim(-1.01, 1.01)
-
-plot_title = "Performance evaluation of"
-ax.set_title(plot_title, fontsize=12)
-ax.set_xlabel('Parameter 1')
-ax.set_ylabel('Parameter 2')
-ax.set_zlabel('Clicks Won')
-
-
-
-#ax.zaxis.set_major_locator(LinearLocator(10))
-#ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-
-fig.colorbar(surf, shrink=0.5, aspect=10)
-plt.title('Performance evaluation of ORTB model')
-# ~~~~ MODIFICATION TO EXAMPLE ENDS HERE ~~~~ #
-
-plt.show()
-
-
-
-
-
-# --- Optimal Real Time Bidding (ORTB)
+                        only_best = 'no', to_plot = 'yes', plot_3d = 'yes')
 
 # --- Max eCPC
 
