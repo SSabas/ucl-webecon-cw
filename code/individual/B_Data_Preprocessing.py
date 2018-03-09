@@ -23,6 +23,8 @@ Date:
 
 import pandas as pd
 from sklearn import preprocessing
+from sklearn.utils import resample
+import math
 
 # -------------------- FUNCTIONS FOR FEATURE ENGINEERING -------------------------- #
 
@@ -143,5 +145,36 @@ def min_max_scaling(data, scale_columns = ['slotwidth', 'slotheight', 'slotprice
 
     return data
 
+
+def upsampling_minority_class(data, class_ratio = 0.05, seed=500):
+
+    # Display old class counts
+    print('The initial dataset has following sizes for each class:')
+    print(data.click.value_counts())
+
+    # Separate majority and minority classes
+    data_majority = data[data.click == 0]
+    data_minority = data[data.click == 1]
+
+    print('Minority class is %.2f%% of initial sample size.' % (len(data_minority)/len(data)*100))
+
+    # Samples to be drawn
+    len_minority = math.floor(class_ratio / (1 - class_ratio) * len(data_majority))
+
+    # Upsample
+    data_minority_upsampled = resample(data_minority,
+                                       replace=True,
+                                       n_samples=len_minority,
+                                       random_state=seed)
+
+    # Combine minority class with downsampled majority class
+    df_upsampled = pd.concat([data_majority, data_minority_upsampled])
+
+    # Display new class counts
+    print('New dataset has following sizes for each class:')
+    print(df_upsampled.click.value_counts())
+    print('Minority class is %.2f%% of total sample size.' % (len_minority/len(df_upsampled)*100))
+
+    return df_upsampled
 
 ############################## END ##################################
