@@ -24,6 +24,7 @@ Date:
 import pandas as pd
 import os
 import sys
+import numpy as np
 
 # ------------------------ ADD CWD TO PYTHONPATH ---------------------------------- #
 
@@ -65,5 +66,70 @@ data = min_max_scaling(data)
 # Separate the datasets
 train1, validation1, test1 = separate_datasets(data, train, validation, test)
 
+# Upsample the minority class
+train1 = upsampling_minority_class(train1, class_ratio=0.02, seed=500)
 
-# ---------------------------- MODELLING AND PREDICTION -------------------------------- #
+
+# ---------------------------- CTR PREDICTION ------------------------------------------ #
+
+model = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
+                           max_iter = 20, n_jobs = 1, tol=0.0025)
+
+param_grid = {'C': [0.1, 1, 10],
+              'penalty': ['l1','l2'],
+              'class_weight': ['balanced', 'unbalanced']}
+
+model = model.fit(train1.drop(['click','bidprice', 'payprice'], axis=1), train1['click'])
+
+
+prediction = model.predict(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
+prediction_proba = model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+accuracy_score(validation['click'], prediction)
+confusion_matrix(validation['click'], prediction)
+roc_auc_score(validation['click'], prediction_proba[:, 1])
+
+
+plot_ROC_curve(validation['click'], prediction_proba[:, 1])
+
+
+# Test how many iterations are needed
+n_iter = 10
+seed = 500
+step_size = 1
+values = np.arange(1, n_iter)
+
+fm = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 10,
+                           max_iter = 1, n_jobs = 3, tol=0.0025, warm_start = True)
+# Initalize coefs
+fm.fit(train1.drop(['click','bidprice', 'payprice'], axis=1), train1['click'])
+
+roc_auc_train = []
+roc_auc_validation = []
+for i in range(1, n_iter):
+    print(i)
+    fm.fit(train1.drop(['click','bidprice', 'payprice'], axis=1), train1['click'])
+    y_pred = fm.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
+    roc_auc_validation.append(roc_auc_score(validation1['click'], y_pred))
+    roc_auc_train.append(roc_auc_score(train1['click'], fm.predict_proba(train1.drop(['click','bidprice', 'payprice'], axis=1))))
+
+
+
+
+
+x = np.arange(1, n_iter) * step_size
+
+with plt.style.context('fivethirtyeight'):
+    plt.plot(x, roc_auc_train, label='train')
+    plt.plot(x, roc_auc_validation, label='test')
+   # plt.plot(values, roc_auc_validation_re, label='train re', linestyle='--')
+   # plt.plot(values, roc_auc_train_re, label='test re', ls='--')
+plt.legend()
+plt.show()
+
+
+
+# ---------------------------- BIDDING STRATEGY ---------------------------------------- #
+
+
+# ---------------------------- OUTPUT  ------------------------------------------------- #
