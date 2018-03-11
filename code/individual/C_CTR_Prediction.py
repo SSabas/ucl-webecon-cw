@@ -38,6 +38,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 # --------------------------------- FITTING --------------------------------------- #
 
+
 # --- PLOT ROC CURVE
 
 def plot_ROC_curve(data, prediction):
@@ -60,71 +61,149 @@ def plot_ROC_curve(data, prediction):
     plt.legend(loc="lower right")
 
 
-
 # --- LOGISTIC REGRESSION
-def logistic_model(train, validation, test, )
+def logistic_model(train, validation,
+                   parameters = {'C': [0.1, 1, 2, 5, 10],
+                  'penalty': ['l1', 'l2'],
+                  'class_weight': ['unbalanced'],
+                  'solver': ['saga'],
+                  'tol': [0.01],
+                  'max_iter': [1]},
+                   use_gridsearch = 'yes',
+                   refit = 'yes',
+                   refit_iter = 100,
+                   use_saved_model = 'no',
+                   saved_model = [],
+                   to_plot ='yes',
+                   random_seed = 500):
 
-# Logistics regression
-logistic = LogisticRegression()
+    if use_gridsearch == 'yes':
 
-# Parameter grid for hyperparameter tuning
-param_grid = {'C': [0.1, 1, 2, 5, 10],
-              'penalty': ['l1', 'l2'],
-              'class_weight': ['unbalanced', 'balanced'],
-              'solver': ['saga'],
-              'tol': [0.01],
-              'max_iter': [100]}
+        # Create model object
+        model = GridSearchCV(LogisticRegression(), parameters, cv=3, verbose=10, scoring = 'roc_auc')
 
-param_grid = {'C': [0.1],
-              'penalty': ['l1'],
-              'class_weight': ['unbalanced'],
-              'solver': ['saga'],
-              'tol': [0.01],
-              'max_iter': [100]}
+        # Fit the model
+        model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
 
-# Specify two scoring functions
-scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
+        # View best hyperparameters
+        print('Best Penalty:', model.best_estimator_.get_params()['penalty'])
+        print('Best C:', model.best_estimator_.get_params()['C'])
 
-# Create model object
-model = GridSearchCV(LogisticRegression(), param_grid, cv=3, verbose=2,
-                     n_jobs = 1, scoring = scoring, refit ='AUC')
+        if refit == 'yes':
 
-# Fit the model
-model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+            # If refit, run
+            model = LogisticRegression(C=model.best_estimator_.get_params()['C'],
+                                       penalty=model.best_estimator_.get_params()['penalty'],
+                                       solver=model.best_estimator_.get_params()['solver'],
+                                       class_weight=model.best_estimator_.get_params()['class_weight'],
+                                       max_iter=refit_iter,
+                                       n_jobs=model.best_estimator_.get_params()['n_jobs'],
+                                       tol=model.best_estimator_.get_params()['tol'],
+                                       random_state=random_seed,
+                                       verbose=10)
+
+            # Refit
+            model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
+
+            # Make prediction
+            prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+        else:
+            prediction = model.best_estimator_.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+    elif use_saved_model == 'yes':
+
+        # View best hyperparameters
+        print('Best Penalty:', saved_model.get_params()['penalty'])
+        print('Best C:', saved_model.get_params()['C'])
+
+        if refit == 'yes':
+
+            # If refit, run
+            model = LogisticRegression(C=saved_model.get_params()['C'],
+                                       penalty=saved_model.get_params()['penalty'],
+                                       solver=saved_model.get_params()['solver'],
+                                       class_weight=saved_model.get_params()['class_weight'],
+                                       max_iter=refit_iter,
+                                       n_jobs=saved_model.get_params()['n_jobs'],
+                                       tol=saved_model.get_params()['tol'],
+                                       random_state=random_seed,
+                                       verbose=10)
+
+            # Fit the model
+            model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
+
+            # Make prediction
+            prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+        else:
+            prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+    else:
+
+        # Fit the model
+        model = LogisticRegression(C=parameters['C'], penalty=parameters['penalty'], solver='saga',
+                                   class_weight = parameters['class_weight'],
+                                   max_iter = parameters['max_iter'],
+                                   n_jobs = parameters['n_jobs'],
+                                   tol=parameters['tol'],
+                                   random_state = random_seed,
+                                   verbose=10)
+
+        model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+        prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+    # Print scores
+    print("AUC: %0.5f for Logistic Model"% (roc_auc_score(validation['click'], prediction[:, 1])))
+
+    if to_plot == 'yes':
+
+        plot_ROC_curve(validation['click'], prediction[:, 1])
+
+    return model, prediction[:,1]
 
 
-CV_pred = cross_val_predict(model, train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+model, prediction = logistic_model(train2, validation1,
+                   parameters = {'C': 0.1, 'penalty': 'l1', 'class_weight': 'unbalanced', 'solver': 'saga',
+                                 'tol': 0.01, 'max_iter': 5,'n_jobs': 3},
+                   use_gridsearch = 'no',
+                   refit = 'no',
+                   use_saved_model = 'no',
+                   saved_model = [],
+                   to_plot ='yes',
+                   random_seed = 500)
 
-cross_val_predict(clf, iris.data, iris.target, cv=10)
-
-
-
-# View best hyperparameters
-print('Best Penalty:', best_model.best_estimator_.get_params()['penalty'])
-print('Best C:', best_model.best_estimator_.get_params()['C'])
-
-# Create hyperparameter options
-hyperparameters = dict(C=C, penalty=penalty)
-
-model = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
-                           max_iter = 10, n_jobs = 3, tol=0.0025)
-
-param_grid = {'C': [0.1, 1, 10],
-              'penalty': ['l1','l2'],
-              'class_weight': ['balanced', 'unbalanced']}
-
-model = model.fit(train1.drop(['click','bidprice', 'payprice'], axis=1), train1['click'])
-
-
-prediction = model.predict(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
-prediction_proba = model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
-
-accuracy_score(validation['click'], prediction)
-confusion_matrix(validation['click'], prediction)
-roc_auc_score(validation['click'], prediction_proba[:, 1])
+model, prediction = logistic_model(train2, validation1,
+                   parameters = {'C': [1, 2],
+                  'penalty': ['l1', 'l2'],
+                  'class_weight': ['unbalanced'],
+                  'solver': ['saga'],
+                  'tol': [0.01],
+                  'max_iter': [3],
+                                 'n_jobs': [3]},
+                   use_gridsearch = 'yes',
+                   refit = 'yes',
+                   refit_iter = 100,
+                   use_saved_model = 'no',
+                   saved_model = [],
+                   to_plot ='yes',
+                   random_seed = 500)
 
 
-plot_ROC_curve(validation['click'], prediction_proba[:, 1])
+model, prediction = logistic_model(train2, validation1,
+                   parameters = {'C': [1, 2],
+                  'penalty': ['l1', 'l2'],
+                  'class_weight': ['unbalanced'],
+                  'solver': ['saga'],
+                  'tol': [0.01],
+                  'max_iter': [3],
+                                 'n_jobs': [3]},
+                   use_gridsearch = 'no',
+                   refit = 'yes',
+                   refit_iter = 13,
+                   use_saved_model = 'yes',
+                   saved_model = model,
+                   to_plot ='yes',
+                   random_seed = 500)
 
 # --- DECISION TREES AND RANDOM FOREST
 # Decision trees
@@ -217,21 +296,21 @@ parameters = list(eta = 0.005,
       eval_metric = "auc",
       objective = "binary:logistic")
 
-xgb_model = xgboost.XGBClassifier(max_depth=3, n_estimators=5, learning_rate=0.05, silent = False,
+xgb_model = xgboost.XGBClassifier(max_depth=20, n_estimators=200, learning_rate=0.05, silent = False,
                                   n_jobs = 3, subsample = 0.5, objective='binary:logistic',
                                   colsample_bytree=0.5, eval_metric = "auc", reg_alpha = 0.1,
                                   reg_lambda = 0.1)
 
-xgb_model = xgb_model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+xgb_model = xgb_model.fit(train2.drop(['click','bidprice', 'payprice'], axis=1), train2['click'])
 
 print(xgb_model.score(train.drop(['click','bidprice', 'payprice'], axis=1), train['click']))
 
 
-xgb_predict = xgb_model.predict(validation.drop(['click','bidprice', 'payprice'], axis=1))
+xgb_predict = xgb_model.predict(validation1.drop(['click','bidprice', 'payprice'], axis=1))
 
 
 prediction = xgb_model.predict(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
-prediction_proba = xgb_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+prediction_proba = xgb_model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
 
 accuracy_score(validation['click'], prediction)
 confusion_matrix(validation['click'], prediction)
@@ -252,38 +331,53 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from mlxtend.classifier import StackingClassifier
 from mlxtend.classifier import StackingCVClassifier
+from sklearn import svm
 
 import xgboost
 
 random_state_nr = 500
 
-clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
-                           max_iter = 20, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
-clf2 = RandomForestClassifier(n_estimators=50, max_depth =10,
-                                  min_samples_split = 5, min_samples_leaf = 3,
+clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 0,
+                           max_iter = 100, n_jobs = 3, tol=0.0001, random_state = random_state_nr)
+clf2 = LogisticRegression(C=1.3, penalty='l2', solver='saga', class_weight = 'unbalanced', verbose = 0,
+                          max_iter = 100, n_jobs = 3, tol=0.0001, random_state = random_state_nr)
+clf3 = svm.SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0, decision_function_shape='ovr', degree=3,
+           gamma='auto', kernel='rbf', max_iter=-1, probability=True, random_state=None, shrinking=True,
+           tol=0.001, verbose=False)
+clf4 = KNeighborsClassifier(n_neighbors=2)
+clf5 = GaussianNB()
+clf6 = RandomForestClassifier(n_estimators=500, max_depth =None,
+                                  min_samples_split = 5, min_samples_leaf = 2,
                                   max_features = 'sqrt', criterion ='entropy',
-                                  verbose = True, n_jobs = 3, random_state=random_state_nr)
-clf3 = ExtraTreesClassifier(n_estimators=20, max_depth=None, min_samples_split=2, random_state=random_state_nr,
-                                 verbose = 2, n_jobs = 3, min_samples_leaf = 3, max_features = 'sqrt',
+                                  verbose = False, n_jobs = 3, random_state=random_state_nr)
+clf7 = ExtraTreesClassifier(n_estimators=500, max_depth=None, min_samples_split=5, random_state=random_state_nr,
+                                 verbose = 0, n_jobs = 3, min_samples_leaf = 2, max_features = 'sqrt',
                                  criterion='entropy', warm_start = True)
-clf4 = xgboost.XGBClassifier(max_depth=20, n_estimators=5, learning_rate=0.05, silent = False,
-                                  n_jobs = 3, subsample = 0.5, objective='binary:logistic',
-                                  colsample_bytree=0.5, eval_metric = "auc", reg_alpha = 0.1,
-                                  reg_lambda = 0.1, random_state = random_state_nr)
-lr = LogisticRegression()
-sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3, clf4],
-                          meta_classifier=lr, use_probas = True)
+clf8 = xgboost.XGBClassifier(max_depth=20, n_estimators=100, learning_rate=0.05, silent = True,
+                                  n_jobs = 3, subsample = 1, objective='binary:logistic',
+                                  colsample_bytree = 1, eval_metric = "auc", reg_alpha = 0.1,
+                                  reg_lambda = 0.1)
+clf9 = xgboost.XGBClassifier(max_depth=20, n_estimators=200, learning_rate=0.05, silent = True,
+                                  n_jobs = 3, subsample = 1, objective='binary:logistic',
+                                  colsample_bytree = 1, eval_metric = "auc", reg_alpha = 0.1,
+                                  reg_lambda = 0.1)
+sclf = StackingClassifier(classifiers=[clf1, clf2, clf3, clf4, clf5, clf6, clf7, clf8],
+                          meta_classifier=clf9, use_probas = False, use_features_in_secondary = True)
 
 print('3-fold cross validation:\n')
 
-for clf, label in zip([clf1, clf2, clf3, clf4, sclf],
-                      ['Logistic Regression',
+for clf, label in zip([clf1, clf2, clf3, clf4, clf5, clf6, clf7, clf8, sclf],
+                      ['Logistic Regression (L1)',
+                       'Logistic Regression (L2)',
+                       'Support Vector Machines',
+                       'KNN',
+                       'Naive Bayes',
                        'Random Forest',
                        'Extreme Random Forest',
                        'XGBoost',
                        'StackingClassifier']):
 
-    scores = model_selection.cross_val_score(clf, train.drop(['click','bidprice', 'payprice'], axis=1), train['click'],
+    scores = model_selection.cross_val_score(clf, train2.drop(['click','bidprice', 'payprice'], axis=1), train2['click'],
                                               cv=3, scoring='roc_auc')
     print("AUC: %0.5f (+/- %0.5f) [%s]"
           % (scores.mean(), scores.std(), label))
@@ -291,23 +385,23 @@ for clf, label in zip([clf1, clf2, clf3, clf4, sclf],
 
 
 clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
-                          max_iter = 20, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
+                          max_iter = 100, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
 clf2 = LogisticRegression(C=1.3, penalty='l2', solver='saga', class_weight = 'unbalanced', verbose = 2,
-                          max_iter = 20, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
-clf3 = RandomForestClassifier(n_estimators=30, max_depth =10,
-                              min_samples_split = 5, min_samples_leaf = 3,
+                          max_iter = 100, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
+clf3 = RandomForestClassifier(n_estimators=100, max_depth =15,
+                              min_samples_split = 5, min_samples_leaf = 2,
                               max_features = 'sqrt', criterion ='entropy',
-                              verbose = True, n_jobs = 3, random_state=random_state_nr)
-clf4 = ExtraTreesClassifier(n_estimators=30, max_depth=None, min_samples_split=2, random_state=random_state_nr,
-                            verbose = 2, n_jobs = 3, min_samples_leaf = 3, max_features = 'sqrt',
+                              verbose = 3, n_jobs = 3, random_state=random_state_nr)
+clf4 = ExtraTreesClassifier(n_estimators=50, max_depth=None, min_samples_split=5, random_state=random_state_nr,
+                            verbose = 2, n_jobs = 3, min_samples_leaf = 2, max_features = 'sqrt',
                             criterion='entropy', warm_start = True)
-clf5 = xgboost.XGBClassifier(max_depth=10, n_estimators=30, learning_rate=0.05, silent = False,
+clf5 = xgboost.XGBClassifier(max_depth=20, n_estimators=30, learning_rate=0.05, silent = False,
                              n_jobs = 3, subsample = 0.5, objective='binary:logistic',
                              colsample_bytree=0.5, eval_metric = "auc", reg_alpha = 0.1,
                              reg_lambda = 0.1, random_state = random_state_nr)
 lr = LogisticRegression()
 sclf = StackingClassifier(classifiers=[clf1, clf2, clf3, clf4, clf5],
-                          meta_classifier=lr, use_probas = True)
+                          meta_classifier=lr, use_probas = True, use_features_in_secondary = True)
 
 scores = model_selection.cross_val_score(sclf, train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'],
                                          cv=5, scoring='roc_auc')
@@ -318,9 +412,9 @@ print("AUC: %0.5f (+/- %0.5f) [%s]"
 from fastFM import als
 import scipy.sparse as sp
 
-train_X = train1.drop(['click', 'bidprice', 'payprice'], axis = 1)
+train_X = train2.drop(['click', 'bidprice', 'payprice'], axis = 1)
 sparse_train_X = sp.csc_matrix(train_X)
-train_Y = train1['click']
+train_Y = train2['click']
 train_Y[train_Y==0] = -1
 
 validation_X = validation1.drop(['click', 'bidprice', 'payprice'], axis = 1)
@@ -329,7 +423,7 @@ validation_Y[validation_Y==0] = -1
 sparse_validation_X = sp.csc_matrix(validation_X)
 
 fm = als.FMClassification(n_iter=10, init_stdev=0.1, rank=2, l2_reg_w=0.1, l2_reg_V=0.5)
-fm.fit(sparse_X, train_Y)
+fm.fit(sparse_train_X, train_Y)
 
 
 # Plot the errors
@@ -356,7 +450,6 @@ for i in range(1, n_iter):
     roc_auc_train.append(roc_auc_score(train_Y, fm.predict_proba(sparse_train_X)))
 
 print('------- restart ----------')
-ƒ 
 roc_auc_validation_re = []
 roc_auc_train_re = []
 for i in values:
@@ -369,12 +462,12 @@ for i in values:
 
 from matplotlib import pyplot as plt
 
-x = np.arange(1, 199) * step_size
+x = np.arange(1, n_iter) * step_size
 
 with plt.style.context('fivethirtyeight'):
     plt.plot(x, roc_auc_train, label='train')
     plt.plot(x, roc_auc_validation, label='test')
-   # plt.plot(values, roc_auc_validation_re, label='train re', linestyle='--')
+    #plt.plot(values, roc_auc_validation_re, label='train re', linestyle='--')
    # plt.plot(values, roc_auc_train_re, label='test re', ls='--')
 plt.legend()
 plt.show()
@@ -390,3 +483,41 @@ confusion_matrix(validation_Y, fm.predict(sparse_validation_X))
 
 
 fm.predict_proba(sparse_validation_X)
+
+
+
+import numpy as np
+import xlearn as xl
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+
+# Load dataset
+iris_data = load_iris()
+X = iris_data['data']
+y = (iris_data['target'] == 2)
+
+X_train,   \
+X_val,     \
+y_train,   \
+y_val = train_test_split(X, y, test_size=0.3, random_state=0)
+
+# param:
+#  0. binary classification
+#  1. model scale: 0.1
+#  2. epoch number: 10 (auto early-stop)
+#  3. learning rate: 0.1
+#  4. regular lambda: 1.0
+#  5. use sgd optimization method
+linear_model = xl.LRModel(task='binary', init=0.1,
+                          epoch=10, lr=0.1,
+                          reg_lambda=1.0, opt='sgd')
+
+# Start to train
+linear_model.fit(X_train, y_train,
+                 eval_set=[X_val, y_val],
+                 is_lock_free=False)
+
+# Generate predictions
+y_pred = linear_model.predict(X_val)
+
+
