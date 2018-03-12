@@ -40,8 +40,7 @@ from mlxtend.classifier import StackingCVClassifier
 from sklearn.ensemble import RandomForestClassifier
 from fastFM import als
 import scipy.sparse as sp
-import pickle
-
+from sklearn.externals import joblib
 
 # --------------------------------- FITTING --------------------------------------- #
 
@@ -79,12 +78,13 @@ def logistic_model(train, validation,
                    refit = 'yes',
                    refit_iter = 100,
                    use_saved_model = 'no',
-                   saved_model = [],
                    to_plot ='yes',
                    random_seed = 500,
                    save_model = 'yes'):
 
     if use_gridsearch == 'yes':
+
+        print('Running gridsearch for hyperparameter tuning.')
 
         # Create model object
         model = GridSearchCV(LogisticRegression(), parameters, cv=3, verbose=10, scoring = 'roc_auc')
@@ -119,6 +119,10 @@ def logistic_model(train, validation,
             prediction = model.best_estimator_.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
 
     elif use_saved_model == 'yes':
+
+        # Load from saved files
+        model_filename = os.getcwd() + "/models/logistic_model.pkl"
+        saved_model = joblib.load(model_filename)
 
         # View best hyperparameters
         print('Saved Model Penalty:', saved_model.get_params()['penalty'])
@@ -165,7 +169,9 @@ def logistic_model(train, validation,
     # Whether to save the model
     if save_model == 'yes':
 
-
+        print('Saving the logistic model to the disc.')
+        model_filename = os.getcwd() + "/models/logistic_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
 
     if to_plot == 'yes':
 
