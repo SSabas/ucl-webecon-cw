@@ -67,69 +67,98 @@ data = min_max_scaling(data)
 train1, validation1, test1 = separate_datasets(data, train, validation, test)
 
 # Upsample the minority class
-train1 = upsampling_minority_class(train1, class_ratio=0.02, seed=500)
+train2 = downsampling_majority_class(train1, class_ratio=0.05, seed=500)
 
 
 # ---------------------------- CTR PREDICTION ------------------------------------------ #
 
-model = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
-                           max_iter = 20, n_jobs = 1, tol=0.0025)
+# --- SOME TOGGLES FOR ANALYSIS
 
-param_grid = {'C': [0.1, 1, 10],
-              'penalty': ['l1','l2'],
-              'class_weight': ['balanced', 'unbalanced']}
+run_gridsearch = 'no'
+import_model_parameters = 'no'
 
-model = model.fit(train1.drop(['click','bidprice', 'payprice'], axis=1), train1['click'])
+# --- LOGISTIC MODEL --- #
+log_classifier, log_prediction = logistic_model(train2, validation1, use_gridsearch='no', refit='yes', refit_iter=500,
+                                                use_saved_model='yes', save_model='no', to_plot='yes', random_seed=500,
+                                                parameters={'C': [0.1, 0.5, 1, 2, 5, 10], 'penalty': ['l1', 'l2'],
+                                                            'class_weight': ['unbalanced', 'balanced'], 'tol': [0.0001],
+                                                            'solver': ['saga'], 'max_iter': [100]})
+# --- RANDOM FOREST --- #
+rf_classifier, rf_prediction = random_forest(train2, validation1, use_gridsearch='no', refit='yes', refit_iter=200,
+                                             use_saved_model='yes', save_model='no', to_plot='yes', random_seed=500,
+                                             parameters={'max_depth': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, None],
+                                                         'min_samples_split' :[4,5,6],
+                                                         "n_estimators" : [50],
+                                                         "min_samples_leaf": [1,2,3,4,5],
+                                                         "max_features": [4,5,6,"sqrt"],
+                                                         "criterion": ['gini'],
+                                                         'random_state': [500]})
 
+# --- EXTREME RANDOM FOREST --- #
+erf_classifier, erf_prediction = extreme_random_forest(train2, validation1, use_gridsearch='no', refit='yes',
+                                                       refit_iter=200, use_saved_model='yes', save_model='no',
+                                                       to_plot='yes', random_seed=500,
+                                                       parameters={'max_depth': [2,3, 4, 5, 6, 7, 8, 9, 10, 11, 12, None],
+                                                                   'min_samples_split': [4, 5, 6],
+                                                                   "n_estimators": [50],
+                                                                   "min_samples_leaf": [1, 2, 3, 4, 5],
+                                                                   "max_features": [4, 5, 6, "sqrt"],
+                                                                   "criterion": ['gini']})
 
-prediction = model.predict(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
-prediction_proba = model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
+# --- XGBOOST --- #
+xgb_classifier, xgb_prediction = gradient_boosted_trees(train2, validation1, use_gridsearch='no', refit='yes',
+                                                        refit_iter=400, use_saved_model='yes', save_model='yes',
+                                                        to_plot='yes', random_seed=500,
+                                                        parameters={'max_depth': [15, 20, 25, 30], "n_estimators": [20],
+                                                                    "learning_rate": [0.05, 0.1, 0.2],
+                                                                    "colsample_bytree": [0.5, 0.8, 1],
+                                                                    "reg_alpha": [0.1], "reg_lambda": [0.1],
+                                                                    "subsample": [0.5, 0.8, 1], "gamma": [0, 0.1]})
+# --- SUPPORT VECTOR MACHINES --- #
+svm_classifier, svm_prediction = support_vector_machine(train2, validation1, use_gridsearch='no', refit='yes',
+                                                        refit_iter=50, use_saved_model='yes', save_model='yes',
+                                                        to_plot='yes', random_seed=500,
+                                                        parameters={'C': [0.1, 1, 2],
+                                                                    "kernel": ['linear', 'poly', 'rbf', 'sigmoid'],
+                                                                    "degree": [2, 3, 4],
+                                                                    "gamma": ['auto'],
+                                                                    "tol": [0.001],
+                                                                    "max_iter": [10],
+                                                                    "probability": [True],
+                                                                    "cache_size": [1000]})
 
-accuracy_score(validation['click'], prediction)
-confusion_matrix(validation['click'], prediction)
-roc_auc_score(validation['click'], prediction_proba[:, 1])
+# --- NAIVE BAYES --- #
+nb_classifier, nb_prediction = naive_bayes(train2, validation1, use_saved_model='no', save_model='yes', to_plot ='yes')
 
+# --- FACTORIZATION MACHINES --- #
+fm_classifier, fm_prediction = factorization_machine(train2, validation1, refit='yes',
+                                                     refit_iter=20, use_saved_model='no', save_model='yes',
+                                                     to_plot='yes', random_seed=500,
+                                                     parameters={'init_stdev': 0.1, "rank": 2,
+                                                                 'l2_reg_w': 0.1, 'l2_reg_V': 0.1,
+                                                                 'n_iter': 300})
 
-plot_ROC_curve(validation['click'], prediction_proba[:, 1])
+# --- STACKING MODEL --- #
+stacked_classifier, stacked_prediction = stacking_classifier(train2, validation1, refit='yes', use_saved_model='yes',
+                                                             save_model='no', to_plot='yes',
+                                                             meta_leaner_parameters={'max_depth': 20, "n_estimators": 20,
+                                                                                     "learning_rate": 0.05,
+                                                                                     'silent': False, 'n_jobs': 3,
+                                                                                     'subsample': 1,
+                                                                                     'objective': 'binary:logistic',
+                                                                                     'colsample_bytree': 1,
+                                                                                     'eval_metric': "auc",
+                                                                                     'reg_alpha': 0.1,
+                                                                                     'reg_lambda': 0.1,
+                                                                                     'random_state': 500},
+                                                             stacking_cv_parameters={'use_probas': False,
+                                                                                     'use_features_in_secondary': True,
+                                                                                     'cv': 2,
+                                                                                     'store_train_meta_features': True,
+                                                                                     'refit': True})
 
-
-# Test how many iterations are needed
-n_iter = 10
-seed = 500
-step_size = 1
-values = np.arange(1, n_iter)
-
-fm = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 10,
-                           max_iter = 1, n_jobs = 3, tol=0.0025, warm_start = True)
-# Initalize coefs
-fm.fit(train1.drop(['click','bidprice', 'payprice'], axis=1), train1['click'])
-
-roc_auc_train = []
-roc_auc_validation = []
-for i in range(1, n_iter):
-    print(i)
-    fm.fit(train1.drop(['click','bidprice', 'payprice'], axis=1), train1['click'])
-    y_pred = fm.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
-    roc_auc_validation.append(roc_auc_score(validation1['click'], y_pred))
-    roc_auc_train.append(roc_auc_score(train1['click'], fm.predict_proba(train1.drop(['click','bidprice', 'payprice'], axis=1))))
-
-
-
-
-
-x = np.arange(1, n_iter) * step_size
-
-with plt.style.context('fivethirtyeight'):
-    plt.plot(x, roc_auc_train, label='train')
-    plt.plot(x, roc_auc_validation, label='test')
-   # plt.plot(values, roc_auc_validation_re, label='train re', linestyle='--')
-   # plt.plot(values, roc_auc_train_re, label='test re', ls='--')
-plt.legend()
-plt.show()
-
-
+# --- COMPARE THE AUC  (PLOT ROC CURVES ON SAME GRAPH) --- #
 
 # ---------------------------- BIDDING STRATEGY ---------------------------------------- #
-
 
 # ---------------------------- OUTPUT  ------------------------------------------------- #
