@@ -231,12 +231,13 @@ def random_forest(train, validation,
               "n_estimators" : [10],
               "min_samples_leaf": [1,2,3,4,5],
               "max_features": [4,5,6,"sqrt"],
-              "criterion": ['gini','entropy']},
+              "criterion": ['gini','entropy'],
+                                 'random_state': 500},
                    use_gridsearch = 'yes',
                    refit = 'yes',
                    refit_iter = 100,
                    use_saved_model = 'no',
-                   saved_model = [],
+                  save_model = 'no',
                    to_plot ='yes',
                    random_seed = 500):
 
@@ -267,7 +268,8 @@ def random_forest(train, validation,
                                    , criterion=model.best_estimator_.get_params()['criterion']
                                    , n_estimators=refit_iter
                                    , n_jobs=3
-                                   , verbose=10)
+                                   , verbose=10
+                                           , random_state= random_seed)
 
             # Refit
             model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
@@ -279,6 +281,10 @@ def random_forest(train, validation,
             prediction = model.best_estimator_.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
 
     elif use_saved_model == 'yes':
+
+        # Load from saved files
+        model_filename = os.getcwd() + "/models/rf_model.pkl"
+        saved_model = joblib.load(model_filename)
 
         # View saved model hyperparameters
         print('Saved Model Max Depth:', saved_model.get_params()['max_depth'])
@@ -297,7 +303,8 @@ def random_forest(train, validation,
                                    , criterion=saved_model.get_params()['criterion']
                                    , n_estimators=refit_iter
                                    , n_jobs=3
-                                   , verbose=10)
+                                   , verbose=10
+                                           , random_state=random_seed)
             # Fit the model
             model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
 
@@ -316,13 +323,21 @@ def random_forest(train, validation,
                                        , criterion=parameters['criterion']
                                        , n_estimators=parameters['n_estimators']
                                        , n_jobs=3
-                                       , verbose=10)
+                                       , verbose=10
+                                       , random_state=random_seed)
 
         model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
         prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
 
     # Print scores
     print("AUC: %0.5f for Random Forest Model"% (roc_auc_score(validation['click'], prediction[:, 1])))
+
+    # Whether to save the model
+    if save_model == 'yes':
+
+        print('Saving the random forest model to the disc.')
+        model_filename = os.getcwd() + "/models/rf_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
 
     if to_plot == 'yes':
 
@@ -382,7 +397,7 @@ def extreme_random_forest(train, validation,
                    refit = 'yes',
                    refit_iter = 100,
                    use_saved_model = 'no',
-                   saved_model = [],
+                          save_model = 'yes',
                    to_plot ='yes',
                    random_seed = 500):
 
@@ -402,7 +417,6 @@ def extreme_random_forest(train, validation,
         print('Best Max Features:', model.best_estimator_.get_params()['max_features'])
         print('Best Criterion:', model.best_estimator_.get_params()['criterion'])
 
-
         if refit == 'yes':
 
             # If refit, run
@@ -413,7 +427,8 @@ def extreme_random_forest(train, validation,
                                    , criterion=model.best_estimator_.get_params()['criterion']
                                    , n_estimators=refit_iter
                                    , n_jobs=3
-                                   , verbose=10)
+                                   , verbose=10
+                                         , random_state = random_seed)
 
             # Refit
             model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
@@ -425,6 +440,10 @@ def extreme_random_forest(train, validation,
             prediction = model.best_estimator_.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
 
     elif use_saved_model == 'yes':
+
+        # Load from saved files
+        model_filename = os.getcwd() + "/models/erf_model.pkl"
+        saved_model = joblib.load(model_filename)
 
         # View saved model hyperparameters
         print('Saved Model Max Depth:', saved_model.get_params()['max_depth'])
@@ -443,7 +462,8 @@ def extreme_random_forest(train, validation,
                                    , criterion=saved_model.get_params()['criterion']
                                    , n_estimators=refit_iter
                                    , n_jobs=3
-                                   , verbose=10)
+                                   , verbose=10
+                                         , random_state=random_seed)
             # Fit the model
             model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
 
@@ -462,10 +482,18 @@ def extreme_random_forest(train, validation,
                                        , criterion=parameters['criterion']
                                        , n_estimators=parameters['n_estimators']
                                        , n_jobs=3
-                                       , verbose=10)
+                                       , verbose=10
+                                     , random_state=random_seed)
 
         model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
         prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+    # Whether to save the model
+    if save_model == 'yes':
+
+        print('Saving the extreme random forest model to the disc.')
+        model_filename = os.getcwd() + "/models/erf_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
 
     # Print scores
     print("AUC: %0.5f for Extreme Random Forest Model"% (roc_auc_score(validation['click'], prediction[:, 1])))
@@ -521,15 +549,16 @@ def gradient_boosted_trees(train, validation,
                            parameters={'max_depth': [15, 20],
                                        "n_estimators": [10],
                                        "learning_rate": [0.05, 0.1],
-                                       "colsample_bytees": [0.5],
+                                       "colsample_bytrees": [0.5],
                                        "reg_alpha": [0.1],
                                        "reg_lambda": [0.1],
-                                       "subsample": [1]},
+                                       "subsample": [1],
+                                       "gamma": [0.1]},
                    use_gridsearch = 'yes',
                    refit = 'yes',
                    refit_iter = 20,
                    use_saved_model = 'no',
-                   saved_model = [],
+                   save_model = 'no',
                    to_plot ='yes',
                    random_seed = 500):
 
@@ -549,6 +578,8 @@ def gradient_boosted_trees(train, validation,
         print('Saved Model Colsample By Trees:', model.best_estimator_.get_params()['colsample_bytree'])
         print('Saved Model Reg Alpha:', model.best_estimator_.get_params()['reg_alpha'])
         print('Saved Model Lambda:', model.best_estimator_.get_params()['reg_lambda'])
+        print('Saved Model Gamma:', model.best_estimator_.get_params()['gamma'])
+
 
 
         if refit == 'yes':
@@ -560,9 +591,11 @@ def gradient_boosted_trees(train, validation,
                                           , colsample_bytree=model.best_estimator_.get_params()['colsample_bytree']
                                           , reg_alpha=model.best_estimator_.get_params()['reg_alpha']
                                           , reg_lambda=model.best_estimator_.get_params()['reg_lambda']
+                                          , gamma=model.best_estimator_.get_params()['gamma']
                                           , n_estimators=refit_iter
                                           , n_jobs=3
-                                          , verbose=10)
+                                          , verbose=10
+                                          , random_state = random_seed)
 
             # Refit
             model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
@@ -575,6 +608,10 @@ def gradient_boosted_trees(train, validation,
 
     elif use_saved_model == 'yes':
 
+        # Load from saved files
+        model_filename = os.getcwd() + "/models/xgb_model.pkl"
+        saved_model = joblib.load(model_filename)
+
         # View saved model hyperparameters
         print('Saved Model Max Depth:', saved_model.get_params()['max_depth'])
         print('Saved Model Learning Rate:', saved_model.get_params()['learning_rate'])
@@ -582,6 +619,8 @@ def gradient_boosted_trees(train, validation,
         print('Saved Model Colsample By Trees:', saved_model.get_params()['colsample_bytree'])
         print('Saved Model Reg Alpha:', saved_model.get_params()['reg_alpha'])
         print('Saved Model Lambda:', saved_model.get_params()['reg_lambda'])
+        print('Saved Model Gamma:', saved_model.get_params()['gamma'])
+
 
         if refit == 'yes':
 
@@ -592,9 +631,11 @@ def gradient_boosted_trees(train, validation,
                                           , colsample_bytree=saved_model.get_params()['colsample_bytree']
                                           , reg_alpha=saved_model.get_params()['reg_alpha']
                                           , reg_lambda=saved_model.get_params()['reg_lambda']
-                                   , n_estimators=refit_iter
+                                          , gamma=saved_model.get_params()['gamma']
+                                          , n_estimators=refit_iter
                                    , n_jobs=3
-                                   , verbose=10)
+                                   , verbose=10
+                                          , random_state=random_seed)
             # Fit the model
             model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
 
@@ -612,15 +653,24 @@ def gradient_boosted_trees(train, validation,
                                       , colsample_bytree=parameters['colsample_bytree']
                                       , reg_alpha=parameters['reg_alpha']
                                       , reg_lambda=parameters['reg_lambda']
+                                      , gamma=parameters['gamma']
                                       , n_estimators=refit_iter
                                       , n_jobs=3
-                                      , verbose=10)
+                                      , verbose=10
+                                      , random_state=random_seed)
 
         model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
         prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
 
     # Print scores
     print("AUC: %0.5f for XGBoost Model"% (roc_auc_score(validation['click'], prediction[:, 1])))
+
+    # Whether to save the model
+    if save_model == 'yes':
+
+        print('Saving the gradient boosted tree model to the disc.')
+        model_filename = os.getcwd() + "/models/xgb_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
 
     if to_plot == 'yes':
 
@@ -684,12 +734,13 @@ def support_vector_machine(train, validation,
                                        "gamma": ['auto'],
                                        "tol": [0.001],
                                        "max_iter": [10],
-                                       "probability": True},
+                                       "probability": [True],
+                                       "cache_size": [1000]},
                    use_gridsearch = 'yes',
                    refit = 'yes',
                    refit_iter = 20,
                    use_saved_model = 'no',
-                   saved_model = [],
+                   save_model = 'yes',
                    to_plot ='yes',
                    random_seed = 500):
 
@@ -729,6 +780,10 @@ def support_vector_machine(train, validation,
             prediction = model.best_estimator_.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
 
     elif use_saved_model == 'yes':
+
+        # Load from saved files
+        model_filename = os.getcwd() + "/models/svm_model.pkl"
+        saved_model = joblib.load(model_filename)
 
         # View saved model hyperparameters
         print('Saved Model C:', saved_model.get_params()['C'])
@@ -772,6 +827,13 @@ def support_vector_machine(train, validation,
 
     # Print scores
     print("AUC: %0.5f for SVM Model"% (roc_auc_score(validation['click'], prediction[:, 1])))
+
+    # Whether to save the model
+    if save_model == 'yes':
+
+        print('Saving the support vector machines to the disc.')
+        model_filename = os.getcwd() + "/models/svm_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
 
     if to_plot == 'yes':
 
@@ -827,16 +889,35 @@ def support_vector_machine(train, validation,
 
 
 # --- NAIVE BAYES
-def naive_bayes(train, validation, to_plot ='yes'):
+def naive_bayes(train, validation, use_saved_model='yes', save_model='yes', to_plot ='yes'):
 
-    # Fit the model
-    model = GaussianNB()
+    if use_saved_model == 'yes':
 
-    model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
-    prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+        # Load from saved files
+        model_filename = os.getcwd() + "/models/nb_model.pkl"
+        saved_model = joblib.load(model_filename)
+
+        # Make prediction
+        prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+    else:
+
+        # Fit the model
+        model = GaussianNB()
+        model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+
+        # Make prediction
+        prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
 
     # Print scores
-    print("AUC: %0.5f for Naive Bayes"% (roc_auc_score(validation['click'], prediction[:, 1])))
+    print("AUC: %0.5f for Naive Bayes."% (roc_auc_score(validation['click'], prediction[:, 1])))
+
+    # Whether to save the model
+    if save_model == 'yes':
+
+        print('Saving the Naive Bayes model to the disc.')
+        model_filename = os.getcwd() + "/models/nb_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
 
     if to_plot == 'yes':
 
@@ -844,7 +925,7 @@ def naive_bayes(train, validation, to_plot ='yes'):
 
     return model, prediction[:,1]
 
-naive_bayes(train2, validation1, to_plot ='yes')
+# naive_bayes(train2, validation1, to_plot ='yes')
 
 # --- KNN
 def KNN(train, validation,
@@ -970,7 +1051,7 @@ def factorization_machine(train, validation,
                    refit = 'yes',
                           refit_iter = 20,
                    use_saved_model = 'no',
-                   saved_model = [],
+                   save_model = 'yes',
                    to_plot ='yes',
                    random_seed = 500):
 
@@ -1018,6 +1099,10 @@ def factorization_machine(train, validation,
 
     if use_saved_model == 'yes':
 
+
+        model_filename = os.getcwd() + "/models/fm_model.pkl"
+        saved_model = joblib.load(model_filename)
+
         # View saved model hyperparameters
         print('Saved Model Rank:', saved_model.get_params()['rank'])
         print('Saved Model L2 Regularisation Parameter W:', saved_model.get_params()['l2_reg_w'])
@@ -1053,6 +1138,13 @@ def factorization_machine(train, validation,
 
     # Print scores
     print("AUC: %0.5f for Factorization Machine Model"% (roc_auc_score(validation_Y, prediction)))
+
+    # Whether to save the model
+    if save_model == 'yes':
+
+        print('Saving the Factorization Machine model to the disc.')
+        model_filename = os.getcwd() + "/models/fm_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
 
     if to_plot == 'yes':
 
@@ -1091,9 +1183,12 @@ def factorization_machine(train, validation,
 
 
 # --- STACKING
-def stacking_classifier(train, validation, refit = 'yes', refit_iter = 20, use_saved_model = 'no',
-                        saved_model = [], to_plot ='yes', random_seed = 500,
-                        meta_model_parameters={'use_probas': False,
+def stacking_classifier(train, validation, refit = 'yes', use_saved_model = 'no', save_model = 'yes', to_plot ='yes',
+                        meta_leaner_parameters={'max_depth':20, "n_estimators":20, "learning_rate":0.05,
+                                                'silent':False, 'n_jobs':3,'subsample':1, 'objective':'binary:logistic',
+                                                'colsample_bytree':1, 'eval_metric':"auc", 'reg_alpha':0.1,
+                                                'reg_lambda':0.1, 'random_state':500},
+                        stacking_cv_parameters={'use_probas': False,
                                                'use_features_in_secondary': True,
                                                'cv': 5,
                                                'store_train_meta_features': True,
@@ -1101,40 +1196,59 @@ def stacking_classifier(train, validation, refit = 'yes', refit_iter = 20, use_s
 
     if use_saved_model == 'no':
 
-        # Import best base models (from grid search done earlier)
-        clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight='unbalanced', verbose=10,
-                                  max_iter=10, n_jobs=3, tol=0.0001, random_state=random_state_nr)
-        clf2 = LogisticRegression(C=1.3, penalty='l2', solver='saga', class_weight='unbalanced', verbose=10,
-                                  max_iter=10, n_jobs=3, tol=0.0001, random_state=random_state_nr)
-        clf3 = svm.SVC(C=1.0, class_weight=None, coef0=0.0, decision_function_shape='ovr', degree=3,
-                       gamma='auto', kernel='rbf', max_iter=5, probability=True, random_state=None, shrinking=True,
-                       tol=0.01, verbose=10)
-        clf4 = GaussianNB()
-        clf5 = RandomForestClassifier(n_estimators=50, max_depth=None,
-                                      min_samples_split=5, min_samples_leaf=2,
-                                      max_features='sqrt', criterion='entropy',
-                                      verbose=10, n_jobs=3, random_state=random_state_nr)
-        clf6 = ExtraTreesClassifier(n_estimators=50, max_depth=None, min_samples_split=5, random_state=random_state_nr,
-                                    verbose=10, n_jobs=3, min_samples_leaf=2, max_features='sqrt',
-                                    criterion='entropy', warm_start=True)
-        clf7 = xgboost.XGBClassifier(max_depth=20, n_estimators=10, learning_rate=0.05, silent=False,
-                                     n_jobs=3, subsample=1, objective='binary:logistic',
-                                     colsample_bytree=1, eval_metric="auc", reg_alpha=0.1,
-                                     reg_lambda=0.1)
-        clf8 = xgboost.XGBClassifier(max_depth=20, n_estimators=20, learning_rate=0.05, silent=False,
-                                     n_jobs=3, subsample=1, objective='binary:logistic',
-                                     colsample_bytree=1, eval_metric="auc", reg_alpha=0.1,
-                                     reg_lambda=0.1)
-        sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3, clf4, clf5, clf6, clf7],
-                                    meta_classifier=clf8, use_probas=meta_model_parameters['use_probas'],
-                                    use_features_in_secondary = meta_model_parameters['use_features_in_secondary'],
-                                    store_train_meta_features=meta_model_parameters['store_train_meta_features'],
-                                    cv = meta_model_parameters['cv'])
+        # Import all the grid searched models
 
-        model = sclf.fit(train2.drop(['click', 'bidprice', 'payprice'], axis=1).values, train2['click'].values)
+        # Logistic
+        model_filename = os.getcwd() + "/models/logistic_model.pkl"
+        log_model = joblib.load(model_filename)
+
+        # Random Forest
+        model_filename = os.getcwd() + "/models/rf_model.pkl"
+        rf_model = joblib.load(model_filename)
+
+        # Extreme Random Forest
+        model_filename = os.getcwd() + "/models/erf_model.pkl"
+        erf_model = joblib.load(model_filename)
+
+        # XGBoost
+        model_filename = os.getcwd() + "/models/xgb_model.pkl"
+        xgb_model = joblib.load(model_filename)
+
+        # SVM
+        model_filename = os.getcwd() + "/models/svm_model.pkl"
+        svm_model = joblib.load(model_filename)
+
+        # Naive Bayes
+        model_filename = os.getcwd() + "/models/nb_model.pkl"
+        nb_model = joblib.load(model_filename)
+
+        meta_learner = xgboost.XGBClassifier(max_depth=meta_leaner_parameters['max_depth'],
+                                             n_estimators=meta_leaner_parameters['n_estimators'],
+                                             learning_rate=meta_leaner_parameters['learning_rate'],
+                                             silent=meta_leaner_parameters['silent'],
+                                             n_jobs=meta_leaner_parameters['n_jobs'],
+                                             subsample=meta_leaner_parameters['subsample'],
+                                             objective=meta_leaner_parameters['objective'],
+                                             colsample_bytree=meta_leaner_parameters['colsample_bytree'],
+                                             eval_metric=meta_leaner_parameters['eval_metric'],
+                                             reg_alpha=meta_leaner_parameters['reg_alpha'],
+                                             reg_lambda=meta_leaner_parameters['reg_lambda'],
+                                             random_state = meta_leaner_parameters['random_state'])
+
+        model = StackingCVClassifier(classifiers=[log_model, rf_model, erf_model, xgb_model, svm_model, nb_model],
+                                    meta_classifier=meta_learner, use_probas=stacking_cv_parameters['use_probas'],
+                                    use_features_in_secondary = stacking_cv_parameters['use_features_in_secondary'],
+                                    store_train_meta_features=stacking_cv_parameters['store_train_meta_features'],
+                                    cv = stacking_cv_parameters['cv'])
+
+        model = model.fit(train2.drop(['click', 'bidprice', 'payprice'], axis=1).values, train2['click'].values)
         prediction = model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1).values)
 
     else:
+
+        # Load from saved files
+        model_filename = os.getcwd() + "/models/stacked_model.pkl"
+        saved_model = joblib.load(model_filename)
 
         if refit == 'yes':
 
@@ -1147,6 +1261,17 @@ def stacking_classifier(train, validation, refit = 'yes', refit_iter = 20, use_s
         else:
             prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
 
+    # Whether to save the model
+    if save_model == 'yes':
+
+        print('Saving the stacked model to the disc.')
+        model_filename = os.getcwd() + "/models/stacked_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
+
+
+    # Print scores
+    print("AUC: %0.5f for Stacking Model"% (roc_auc_score(validation['click'], prediction[:, 1])))
+
     if to_plot == 'yes':
 
         plot_ROC_curve(validation['click'], prediction[:, 1])
@@ -1154,263 +1279,263 @@ def stacking_classifier(train, validation, refit = 'yes', refit_iter = 20, use_s
     return model, prediction[:,1]
 
 
-model, prediction = stacking_classifier(train2, validation1, refit_iter = 20, use_saved_model = 'no',
-                        saved_model = [], to_plot ='yes', random_seed = 500,
-                        meta_model_parameters={'use_probas': False,
-                                               'use_features_in_secondary': True,
-                                               'cv': 2,
-                                               'store_train_meta_features': True,
-                                               'refit': True})
-
-model2, prediction2 = stacking_classifier(train2, validation1, refit = 'no', refit_iter = 20, use_saved_model = 'no',
-                        saved_model = model, to_plot ='yes', random_seed = 500,
-                        meta_model_parameters={'use_probas': False,
-                                               'use_features_in_secondary': True,
-                                               'cv': 2,
-                                               'store_train_meta_features': True,
-                                               'refit': True})
-
-
-
-
-
-
-
-from sklearn import model_selection
-from sklearn.linear_model import LogisticRegression
-
-from sklearn.ensemble import RandomForestClassifier
-
-from sklearn import svm
-
-import xgboost
-
-random_state_nr = 500
-
-clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 10,
-                           max_iter = 100, n_jobs = 3, tol=0.0001, random_state = random_state_nr)
-clf2 = LogisticRegression(C=1.3, penalty='l2', solver='saga', class_weight = 'unbalanced', verbose = 10,
-                          max_iter = 100, n_jobs = 3, tol=0.0001, random_state = random_state_nr)
-clf3 = svm.SVC(C=1.0, class_weight=None, coef0=0.0, decision_function_shape='ovr', degree=3,
-           gamma='auto', kernel='rbf', max_iter=5, probability=True, random_state=None, shrinking=True,
-           tol=0.01, verbose=10)
-# clf4 = KNeighborsClassifier(n_neighbors=2)
-clf5 = GaussianNB()
-clf6 = RandomForestClassifier(n_estimators=500, max_depth =None,
-                                  min_samples_split = 5, min_samples_leaf = 2,
-                                  max_features = 'sqrt', criterion ='entropy',
-                                  verbose = 10, n_jobs = 3, random_state=random_state_nr)
-clf7 = ExtraTreesClassifier(n_estimators=500, max_depth=None, min_samples_split=5, random_state=random_state_nr,
-                                 verbose = 10, n_jobs = 3, min_samples_leaf = 2, max_features = 'sqrt',
-                                 criterion='entropy', warm_start = True)
-clf8 = xgboost.XGBClassifier(max_depth=20, n_estimators=100, learning_rate=0.05, silent = False,
-                                  n_jobs = 3, subsample = 1, objective='binary:logistic',
-                                  colsample_bytree = 1, eval_metric = "auc", reg_alpha = 0.1,
-                                  reg_lambda = 0.1)
-clf9 = xgboost.XGBClassifier(max_depth=20, n_estimators=200, learning_rate=0.05, silent = False,
-                                  n_jobs = 3, subsample = 1, objective='binary:logistic',
-                                  colsample_bytree = 1, eval_metric = "auc", reg_alpha = 0.1,
-                                  reg_lambda = 0.1)
-sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3, clf5, clf6, clf7, clf8],
-                          meta_classifier=clf9, use_probas = False, use_features_in_secondary = True)
-
-print('3-fold cross validation:\n')
-
-for clf, label in zip([clf1, clf2, clf3, clf5, clf6, clf7, clf8, sclf],
-                      ['Logistic Regression (L1)',
-                       'Logistic Regression (L2)',
-                       'Support Vector Machines',
-                      # 'KNN',
-                       'Naive Bayes',
-                       'Random Forest',
-                       'Extreme Random Forest',
-                       'XGBoost',
-                       'StackingClassifier']):
-    print(clf, label)
-
-    scores = model_selection.cross_val_score(clf, train2.drop(['click','bidprice', 'payprice'], axis=1).values, train2['click'].values,
-                                              cv=3, scoring='roc_auc')
-    print("AUC: %0.5f (+/- %0.5f) [%s]"
-          % (scores.mean(), scores.std(), label))
-clf.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
-
-
-clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
-                          max_iter = 100, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
-clf2 = LogisticRegression(C=1.3, penalty='l2', solver='saga', class_weight = 'unbalanced', verbose = 2,
-                          max_iter = 100, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
-clf3 = RandomForestClassifier(n_estimators=100, max_depth =15,
-                              min_samples_split = 5, min_samples_leaf = 2,
-                              max_features = 'sqrt', criterion ='entropy',
-                              verbose = 3, n_jobs = 3, random_state=random_state_nr)
-clf4 = ExtraTreesClassifier(n_estimators=50, max_depth=None, min_samples_split=5, random_state=random_state_nr,
-                            verbose = 2, n_jobs = 3, min_samples_leaf = 2, max_features = 'sqrt',
-                            criterion='entropy', warm_start = True)
-clf5 = xgboost.XGBClassifier(max_depth=20, n_estimators=30, learning_rate=0.05, silent = False,
-                             n_jobs = 3, subsample = 0.5, objective='binary:logistic',
-                             colsample_bytree=0.5, eval_metric = "auc", reg_alpha = 0.1,
-                             reg_lambda = 0.1, random_state = random_state_nr)
-lr = LogisticRegression()
-sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3, clf4, clf5],
-                          meta_classifier=lr, use_probas = True, use_features_in_secondary = True)
-
-scores = model_selection.cross_val_score(sclf, train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'],
-                                         cv=5, scoring='roc_auc')
-print("AUC: %0.5f (+/- %0.5f) [%s]"
-      % (scores.mean(), scores.std(), label))
-
-# --- Factorization Machine
-from fastFM import als
-import scipy.sparse as sp
-
-train_X = train2.drop(['click', 'bidprice', 'payprice'], axis = 1)
-sparse_train_X = sp.csc_matrix(train_X)
-train_Y = train2['click']
-train_Y[train_Y==0] = -1
-
-validation_X = validation1.drop(['click', 'bidprice', 'payprice'], axis = 1)
-validation_Y = validation1['click']
-validation_Y[validation_Y==0] = -1
-sparse_validation_X = sp.csc_matrix(validation_X)
-
-fm = als.FMClassification(n_iter=10, init_stdev=0.1, rank=2, l2_reg_w=0.1, l2_reg_V=0.5)
-fm.fit(sparse_train_X, train_Y)
-
-
-# Plot the errors
-n_iter = 100
-l2_reg_w = 0.1
-l2_reg_V = 0.5
-rank = 5
-seed = 500
-step_size = 1
-values = np.arange(1, n_iter)
-
-fm = als.FMClassification(n_iter=0, l2_reg_w=l2_reg_w,
-                      l2_reg_V=l2_reg_V, rank=rank, random_state=seed)
-# Initalize coefs
-fm.fit(sparse_train_X, train_Y)
-
-roc_auc_train = []
-roc_auc_validation = []
-for i in range(1, n_iter):
-    print(i)
-    fm.fit(sparse_train_X, train_Y, n_more_iter=step_size)
-    y_pred = fm.predict(sparse_validation_X)
-    roc_auc_validation.append(roc_auc_score(validation_Y, fm.predict_proba(sparse_validation_X)))
-    roc_auc_train.append(roc_auc_score(train_Y, fm.predict_proba(sparse_train_X)))
-
-print('------- restart ----------')
-roc_auc_validation_re = []
-roc_auc_train_re = []
-for i in values:
-    print(i)
-    fm = als.FMClassification(n_iter=i, l2_reg_w=l2_reg_w,
-                              l2_reg_V=l2_reg_V, rank=rank, random_state=seed)
-    fm.fit(sparse_train_X, train_Y)
-    roc_auc_validation_re.append(roc_auc_score(validation_Y, fm.predict_proba(sparse_validation_X)))
-    roc_auc_train_re.append(roc_auc_score(train_Y, fm.predict_proba(sparse_train_X)))
-
-from matplotlib import pyplot as plt
-
-x = np.arange(1, n_iter) * step_size
-
-with plt.style.context('fivethirtyeight'):
-    plt.plot(x, roc_auc_train, label='train')
-    plt.plot(x, roc_auc_validation, label='test')
-    #plt.plot(values, roc_auc_validation_re, label='train re', linestyle='--')
-   # plt.plot(values, roc_auc_train_re, label='test re', ls='--')
-plt.legend()
-plt.show()
-
-
-
-# Prediction
-
-y_pred = fm.predict(sparse_validation_X)
-roc_auc_score(validation_Y, y_pred)
-accuracy_score(validation_Y, y_pred)
-confusion_matrix(validation_Y, fm.predict(sparse_validation_X))
-
-
-fm.predict_proba(sparse_validation_X)
-
-
-
-import numpy as np
-import xlearn as xl
-from sklearn.datasets import load_iris
-from sklearn.model_selection import train_test_split
-
-# Load dataset
-iris_data = load_iris()
-X = iris_data['data']
-y = (iris_data['target'] == 2)
-
-X_train,   \
-X_val,     \
-y_train,   \
-y_val = train_test_split(X, y, test_size=0.3, random_state=0)
-
-# param:
-#  0. binary classification
-#  1. model scale: 0.1
-#  2. epoch number: 10 (auto early-stop)
-#  3. learning rate: 0.1
-#  4. regular lambda: 1.0
-#  5. use sgd optimization method
-linear_model = xl.LRModel(task='binary', init=0.1,
-                          epoch=10, lr=0.1,
-                          reg_lambda=1.0, opt='sgd')
-
-# Start to train
-linear_model.fit(X_train, y_train,
-                 eval_set=[X_val, y_val],
-                 is_lock_free=False)
-
-# Generate predictions
-y_pred = linear_model.predict(X_val)
-
-
-
-from sklearn import datasets
-
-iris = datasets.load_iris()
-X, y = iris.data[:, 1:3], iris.target
-
-from sklearn import model_selection
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.ensemble import RandomForestClassifier
-from mlxtend.classifier import StackingCVClassifier
-import numpy as np
-
-RANDOM_SEED = 42
-
-clf1 = KNeighborsClassifier(n_neighbors=1)
-clf2 = RandomForestClassifier(random_state=RANDOM_SEED)
-clf3 = GaussianNB()
-lr = LogisticRegression()
-
-# The StackingCVClassifier uses scikit-learn's check_cv
-# internally, which doesn't support a random seed. Thus
-# NumPy's random seed need to be specified explicitely for
-# deterministic behavior
-np.random.seed(RANDOM_SEED)
-sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3],
-                            meta_classifier=lr)
-
-print('3-fold cross validation:\n')
-
-for clf, label in zip([clf1, clf2, clf3, sclf],
-                      ['KNN',
-                       'Random Forest',
-                       'Naive Bayes',
-                       'StackingClassifier']):
-
-    scores = model_selection.cross_val_score(clf, X, y,
-                                              cv=3, scoring='accuracy')
-    print("Accuracy: %0.2f (+/- %0.2f) [%s]"
-          % (scores.mean(), scores.std(), label))
-
+# model, prediction = stacking_classifier(train2, validation1, refit_iter = 20, use_saved_model = 'no',
+#                         saved_model = [], to_plot ='yes', random_seed = 500,
+#                         meta_model_parameters={'use_probas': False,
+#                                                'use_features_in_secondary': True,
+#                                                'cv': 2,
+#                                                'store_train_meta_features': True,
+#                                                'refit': True})
+#
+# model2, prediction2 = stacking_classifier(train2, validation1, refit = 'no', refit_iter = 20, use_saved_model = 'no',
+#                         saved_model = model, to_plot ='yes', random_seed = 500,
+#                         meta_model_parameters={'use_probas': False,
+#                                                'use_features_in_secondary': True,
+#                                                'cv': 2,
+#                                                'store_train_meta_features': True,
+#                                                'refit': True})
+#
+#
+#
+#
+#
+#
+#
+# from sklearn import model_selection
+# from sklearn.linear_model import LogisticRegression
+#
+# from sklearn.ensemble import RandomForestClassifier
+#
+# from sklearn import svm
+#
+# import xgboost
+#
+# random_state_nr = 500
+#
+# clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 10,
+#                            max_iter = 100, n_jobs = 3, tol=0.0001, random_state = random_state_nr)
+# clf2 = LogisticRegression(C=1.3, penalty='l2', solver='saga', class_weight = 'unbalanced', verbose = 10,
+#                           max_iter = 100, n_jobs = 3, tol=0.0001, random_state = random_state_nr)
+# clf3 = svm.SVC(C=1.0, class_weight=None, coef0=0.0, decision_function_shape='ovr', degree=3,
+#            gamma='auto', kernel='rbf', max_iter=5, probability=True, random_state=None, shrinking=True,
+#            tol=0.01, verbose=10)
+# # clf4 = KNeighborsClassifier(n_neighbors=2)
+# clf5 = GaussianNB()
+# clf6 = RandomForestClassifier(n_estimators=500, max_depth =None,
+#                                   min_samples_split = 5, min_samples_leaf = 2,
+#                                   max_features = 'sqrt', criterion ='entropy',
+#                                   verbose = 10, n_jobs = 3, random_state=random_state_nr)
+# clf7 = ExtraTreesClassifier(n_estimators=500, max_depth=None, min_samples_split=5, random_state=random_state_nr,
+#                                  verbose = 10, n_jobs = 3, min_samples_leaf = 2, max_features = 'sqrt',
+#                                  criterion='entropy', warm_start = True)
+# clf8 = xgboost.XGBClassifier(max_depth=20, n_estimators=100, learning_rate=0.05, silent = False,
+#                                   n_jobs = 3, subsample = 1, objective='binary:logistic',
+#                                   colsample_bytree = 1, eval_metric = "auc", reg_alpha = 0.1,
+#                                   reg_lambda = 0.1)
+# clf9 = xgboost.XGBClassifier(max_depth=20, n_estimators=200, learning_rate=0.05, silent = False,
+#                                   n_jobs = 3, subsample = 1, objective='binary:logistic',
+#                                   colsample_bytree = 1, eval_metric = "auc", reg_alpha = 0.1,
+#                                   reg_lambda = 0.1)
+# sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3, clf5, clf6, clf7, clf8],
+#                           meta_classifier=clf9, use_probas = False, use_features_in_secondary = True)
+#
+# print('3-fold cross validation:\n')
+#
+# for clf, label in zip([clf1, clf2, clf3, clf5, clf6, clf7, clf8, sclf],
+#                       ['Logistic Regression (L1)',
+#                        'Logistic Regression (L2)',
+#                        'Support Vector Machines',
+#                       # 'KNN',
+#                        'Naive Bayes',
+#                        'Random Forest',
+#                        'Extreme Random Forest',
+#                        'XGBoost',
+#                        'StackingClassifier']):
+#     print(clf, label)
+#
+#     scores = model_selection.cross_val_score(clf, train2.drop(['click','bidprice', 'payprice'], axis=1).values, train2['click'].values,
+#                                               cv=3, scoring='roc_auc')
+#     print("AUC: %0.5f (+/- %0.5f) [%s]"
+#           % (scores.mean(), scores.std(), label))
+# clf.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1))
+#
+#
+# clf1 = LogisticRegression(C=1.3, penalty='l1', solver='saga', class_weight = 'unbalanced', verbose = 2,
+#                           max_iter = 100, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
+# clf2 = LogisticRegression(C=1.3, penalty='l2', solver='saga', class_weight = 'unbalanced', verbose = 2,
+#                           max_iter = 100, n_jobs = 3, tol=0.0025, random_state = random_state_nr)
+# clf3 = RandomForestClassifier(n_estimators=100, max_depth =15,
+#                               min_samples_split = 5, min_samples_leaf = 2,
+#                               max_features = 'sqrt', criterion ='entropy',
+#                               verbose = 3, n_jobs = 3, random_state=random_state_nr)
+# clf4 = ExtraTreesClassifier(n_estimators=50, max_depth=None, min_samples_split=5, random_state=random_state_nr,
+#                             verbose = 2, n_jobs = 3, min_samples_leaf = 2, max_features = 'sqrt',
+#                             criterion='entropy', warm_start = True)
+# clf5 = xgboost.XGBClassifier(max_depth=20, n_estimators=30, learning_rate=0.05, silent = False,
+#                              n_jobs = 3, subsample = 0.5, objective='binary:logistic',
+#                              colsample_bytree=0.5, eval_metric = "auc", reg_alpha = 0.1,
+#                              reg_lambda = 0.1, random_state = random_state_nr)
+# lr = LogisticRegression()
+# sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3, clf4, clf5],
+#                           meta_classifier=lr, use_probas = True, use_features_in_secondary = True)
+#
+# scores = model_selection.cross_val_score(sclf, train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'],
+#                                          cv=5, scoring='roc_auc')
+# print("AUC: %0.5f (+/- %0.5f) [%s]"
+#       % (scores.mean(), scores.std(), label))
+#
+# # --- Factorization Machine
+# from fastFM import als
+# import scipy.sparse as sp
+#
+# train_X = train2.drop(['click', 'bidprice', 'payprice'], axis = 1)
+# sparse_train_X = sp.csc_matrix(train_X)
+# train_Y = train2['click']
+# train_Y[train_Y==0] = -1
+#
+# validation_X = validation1.drop(['click', 'bidprice', 'payprice'], axis = 1)
+# validation_Y = validation1['click']
+# validation_Y[validation_Y==0] = -1
+# sparse_validation_X = sp.csc_matrix(validation_X)
+#
+# fm = als.FMClassification(n_iter=10, init_stdev=0.1, rank=2, l2_reg_w=0.1, l2_reg_V=0.5)
+# fm.fit(sparse_train_X, train_Y)
+#
+#
+# # Plot the errors
+# n_iter = 100
+# l2_reg_w = 0.1
+# l2_reg_V = 0.5
+# rank = 5
+# seed = 500
+# step_size = 1
+# values = np.arange(1, n_iter)
+#
+# fm = als.FMClassification(n_iter=0, l2_reg_w=l2_reg_w,
+#                       l2_reg_V=l2_reg_V, rank=rank, random_state=seed)
+# # Initalize coefs
+# fm.fit(sparse_train_X, train_Y)
+#
+# roc_auc_train = []
+# roc_auc_validation = []
+# for i in range(1, n_iter):
+#     print(i)
+#     fm.fit(sparse_train_X, train_Y, n_more_iter=step_size)
+#     y_pred = fm.predict(sparse_validation_X)
+#     roc_auc_validation.append(roc_auc_score(validation_Y, fm.predict_proba(sparse_validation_X)))
+#     roc_auc_train.append(roc_auc_score(train_Y, fm.predict_proba(sparse_train_X)))
+#
+# print('------- restart ----------')
+# roc_auc_validation_re = []
+# roc_auc_train_re = []
+# for i in values:
+#     print(i)
+#     fm = als.FMClassification(n_iter=i, l2_reg_w=l2_reg_w,
+#                               l2_reg_V=l2_reg_V, rank=rank, random_state=seed)
+#     fm.fit(sparse_train_X, train_Y)
+#     roc_auc_validation_re.append(roc_auc_score(validation_Y, fm.predict_proba(sparse_validation_X)))
+#     roc_auc_train_re.append(roc_auc_score(train_Y, fm.predict_proba(sparse_train_X)))
+#
+# from matplotlib import pyplot as plt
+#
+# x = np.arange(1, n_iter) * step_size
+#
+# with plt.style.context('fivethirtyeight'):
+#     plt.plot(x, roc_auc_train, label='train')
+#     plt.plot(x, roc_auc_validation, label='test')
+#     #plt.plot(values, roc_auc_validation_re, label='train re', linestyle='--')
+#    # plt.plot(values, roc_auc_train_re, label='test re', ls='--')
+# plt.legend()
+# plt.show()
+#
+#
+#
+# # Prediction
+#
+# y_pred = fm.predict(sparse_validation_X)
+# roc_auc_score(validation_Y, y_pred)
+# accuracy_score(validation_Y, y_pred)
+# confusion_matrix(validation_Y, fm.predict(sparse_validation_X))
+#
+#
+# fm.predict_proba(sparse_validation_X)
+#
+#
+#
+# import numpy as np
+# import xlearn as xl
+# from sklearn.datasets import load_iris
+# from sklearn.model_selection import train_test_split
+#
+# # Load dataset
+# iris_data = load_iris()
+# X = iris_data['data']
+# y = (iris_data['target'] == 2)
+#
+# X_train,   \
+# X_val,     \
+# y_train,   \
+# y_val = train_test_split(X, y, test_size=0.3, random_state=0)
+#
+# # param:
+# #  0. binary classification
+# #  1. model scale: 0.1
+# #  2. epoch number: 10 (auto early-stop)
+# #  3. learning rate: 0.1
+# #  4. regular lambda: 1.0
+# #  5. use sgd optimization method
+# linear_model = xl.LRModel(task='binary', init=0.1,
+#                           epoch=10, lr=0.1,
+#                           reg_lambda=1.0, opt='sgd')
+#
+# # Start to train
+# linear_model.fit(X_train, y_train,
+#                  eval_set=[X_val, y_val],
+#                  is_lock_free=False)
+#
+# # Generate predictions
+# y_pred = linear_model.predict(X_val)
+#
+#
+#
+# from sklearn import datasets
+#
+# iris = datasets.load_iris()
+# X, y = iris.data[:, 1:3], iris.target
+#
+# from sklearn import model_selection
+# from sklearn.linear_model import LogisticRegression
+# from sklearn.neighbors import KNeighborsClassifier
+# from sklearn.naive_bayes import GaussianNB
+# from sklearn.ensemble import RandomForestClassifier
+# from mlxtend.classifier import StackingCVClassifier
+# import numpy as np
+#
+# RANDOM_SEED = 42
+#
+# clf1 = KNeighborsClassifier(n_neighbors=1)
+# clf2 = RandomForestClassifier(random_state=RANDOM_SEED)
+# clf3 = GaussianNB()
+# lr = LogisticRegression()
+#
+# # The StackingCVClassifier uses scikit-learn's check_cv
+# # internally, which doesn't support a random seed. Thus
+# # NumPy's random seed need to be specified explicitely for
+# # deterministic behavior
+# np.random.seed(RANDOM_SEED)
+# sclf = StackingCVClassifier(classifiers=[clf1, clf2, clf3],
+#                             meta_classifier=lr)
+#
+# print('3-fold cross validation:\n')
+#
+# for clf, label in zip([clf1, clf2, clf3, sclf],
+#                       ['KNN',
+#                        'Random Forest',
+#                        'Naive Bayes',
+#                        'StackingClassifier']):
+#
+#     scores = model_selection.cross_val_score(clf, X, y,
+#                                               cv=3, scoring='accuracy')
+#     print("Accuracy: %0.2f (+/- %0.2f) [%s]"
+#           % (scores.mean(), scores.std(), label))
+#
