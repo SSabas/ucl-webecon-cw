@@ -34,13 +34,10 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import RandomForestClassifier
 
-
-
 # --------------------------------- FITTING --------------------------------------- #
 
 
 # --- PLOT ROC CURVE
-
 def plot_ROC_curve(data, prediction):
     """
     Function to plot the ROC curve with AUC.
@@ -114,8 +111,8 @@ def logistic_model(train, validation,
     elif use_saved_model == 'yes':
 
         # View best hyperparameters
-        print('Best Penalty:', saved_model.get_params()['penalty'])
-        print('Best C:', saved_model.get_params()['C'])
+        print('Saved Model Penalty:', saved_model.get_params()['penalty'])
+        print('Saved Model C:', saved_model.get_params()['C'])
 
         if refit == 'yes':
 
@@ -205,15 +202,159 @@ model, prediction = logistic_model(train2, validation1,
                    to_plot ='yes',
                    random_seed = 500)
 
-# --- DECISION TREES AND RANDOM FOREST
-# Decision trees
-from sklearn.ensemble import RandomForestClassifier
 
-
-parameters = {'max_depth': [2,3,4,5,6,7,8,9,10,11,12],
+# --- RANDOM FOREST
+def random_forest(train, validation,
+                   parameters = {'max_depth': [2,3,4,5,6,7,8,9,10,11,12, None],
               'min_samples_split' :[4,5,6],
               "n_estimators" : [10],
-              "min_samples_leaf": [3,4,5],
+              "min_samples_leaf": [1,2,3,4,5],
+              "max_features": [4,5,6,"sqrt"],
+              "criterion": ['gini','entropy']},
+                   use_gridsearch = 'yes',
+                   refit = 'yes',
+                   refit_iter = 100,
+                   use_saved_model = 'no',
+                   saved_model = [],
+                   to_plot ='yes',
+                   random_seed = 500):
+
+
+    if use_gridsearch == 'yes':
+
+        # Create model object
+        model = GridSearchCV(RandomForestClassifier(), parameters, cv=3, verbose=10, scoring = 'roc_auc')
+
+        # Fit the model
+        model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+
+        # View best hyperparameters
+        print('Best Max Depth:', model.best_estimator_.get_params()['max_depth'])
+        print('Best Min Sample Split:', model.best_estimator_.get_params()['min_samples_split'])
+        print('Best Min Samples Leaf:', model.best_estimator_.get_params()['min_samples_leaf'])
+        print('Best Max Features:', model.best_estimator_.get_params()['max_features'])
+        print('Best Criterion:', model.best_estimator_.get_params()['criterion'])
+
+
+        if refit == 'yes':
+
+            # If refit, run
+            model = RandomForestClassifier(max_depth=model.best_estimator_.get_params()["max_depth"]
+                                   , max_features=model.best_estimator_.get_params()['max_features']
+                                   , min_samples_leaf=model.best_estimator_.get_params()['min_samples_leaf']
+                                   , min_samples_split=model.best_estimator_.get_params()['min_samples_split']
+                                   , criterion=model.best_estimator_.get_params()['criterion']
+                                   , n_estimators=refit_iter
+                                   , n_jobs=3
+                                   , verbose=10)
+
+            # Refit
+            model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
+
+            # Make prediction
+            prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+        else:
+            prediction = model.best_estimator_.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+    elif use_saved_model == 'yes':
+
+        # View saved model hyperparameters
+        print('Saved Model Max Depth:', saved_model.get_params()['max_depth'])
+        print('Saved Model Min Sample Split:', saved_model.get_params()['min_samples_split'])
+        print('Saved Model Min Samples Leaf:', saved_model.get_params()['min_samples_leaf'])
+        print('Saved Model Max Features:', saved_model.get_params()['max_features'])
+        print('Saved Model Criterion:', saved_model.get_params()['criterion'])
+
+        if refit == 'yes':
+
+            # If refit, run
+            model = RandomForestClassifier(max_depth=saved_model.get_params()["max_depth"]
+                                   , max_features=saved_model.get_params()['max_features']
+                                   , min_samples_leaf=saved_model.get_params()['min_samples_leaf']
+                                   , min_samples_split=saved_model.get_params()['min_samples_split']
+                                   , criterion=saved_model.get_params()['criterion']
+                                   , n_estimators=refit_iter
+                                   , n_jobs=3
+                                   , verbose=10)
+            # Fit the model
+            model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
+
+            # Make prediction
+            prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+        else:
+            prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+    else:
+
+        # Fit the model
+        model = RandomForestClassifier(max_depth=parameters["max_depth"]
+                                       , max_features=parameters['max_features']
+                                       , min_samples_leaf=parameters['min_samples_leaf']
+                                       , min_samples_split=parameters['min_samples_split']
+                                       , criterion=parameters['criterion']
+                                       , n_estimators=parameters['n_estimators']
+                                       , n_jobs=3
+                                       , verbose=10)
+
+        model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
+        prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+
+    # Print scores
+    print("AUC: %0.5f for Random Forest Model"% (roc_auc_score(validation['click'], prediction[:, 1])))
+
+    if to_plot == 'yes':
+
+        plot_ROC_curve(validation['click'], prediction[:, 1])
+
+    return model, prediction[:,1]
+
+model2, prediction = random_forest(train2, validation1,
+                   parameters = {'max_depth': [10,11,12, None],
+              'min_samples_split' :[4],
+              "n_estimators" : [10],
+              "min_samples_leaf": [1,2,3],
+              "max_features": ["sqrt"],
+              "criterion": ['entropy']},
+                   use_gridsearch = 'yes',
+                   refit = 'yes',
+                   refit_iter = 100,
+                   use_saved_model = 'no',
+                   saved_model = [],
+                   to_plot ='yes',
+                   random_seed = 500)
+
+model, prediction = random_forest(train2, validation1,
+                   parameters = {'max_depth': None,
+              'min_samples_split' :4,
+              "n_estimators" : 10,
+              "min_samples_leaf": 2,
+              "max_features": "sqrt",
+              "criterion": 'entropy'},
+                   use_gridsearch = 'no',
+                   refit = 'yes',
+                   refit_iter = 10,
+                   use_saved_model = 'no',
+                   saved_model = [],
+                   to_plot ='yes',
+                   random_seed = 500)
+
+model, prediction = random_forest(train2, validation1,
+                   use_gridsearch = 'no',
+                   refit = 'yes',
+                   refit_iter = 10,
+                   use_saved_model = 'yes',
+                   saved_model = model2,
+                   to_plot ='yes',
+                   random_seed = 500)
+
+# Decision trees
+
+
+parameters = {'max_depth': [2,3,4,5,6,7,8,9,10,11,12, None],
+              'min_samples_split' :[4,5,6],
+              "n_estimators" : [10],
+              "min_samples_leaf": [1,2,3,4,5],
               "max_features": [4,5,6,"sqrt"],
               "criterion": ['gini','entropy']}
 
