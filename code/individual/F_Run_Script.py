@@ -69,9 +69,7 @@ train1, validation1, test1 = separate_datasets(data, train, validation, test)
 # Upsample the minority class
 train2 = downsampling_majority_class(train1, class_ratio=0.05, seed=500)
 
-
 # ---------------------------- CTR PREDICTION ------------------------------------------ #
-
 
 # Get functions from CTR prediction script
 from C_CTR_Prediction import *
@@ -175,7 +173,17 @@ plot_ROC_curve(validation1['click'], stacked_prediction, model='Stacked')
 plt.savefig(os.getcwd()+'/results/AUC_comparison.pdf')
 
 
+# ---------------------------- TEST DOWNSAMPLING EFFECT ---------------------------------------- #
+
+downsampling_sensitivity = test_downsampling(train1, validation1, erf_classifier,
+                                             minority_levels=np.linspace(0.005, 0.2, 40),
+                                             model_type='ERF', random_seed=500)
+plt.savefig(os.getcwd()+'/results/downsizing_sensitivity.pdf')
+
 # ---------------------------- BIDDING STRATEGY ---------------------------------------- #
+
+# Get functions from CTR prediction script
+from C_CTR_Prediction import *
 
 # Run the grid search for hyperparameters
 # Try the line fitting function

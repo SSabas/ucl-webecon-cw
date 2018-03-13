@@ -25,6 +25,7 @@ import pandas as pd
 from sklearn import preprocessing
 from sklearn.utils import resample
 import math
+import time
 
 # -------------------- FUNCTIONS FOR FEATURE ENGINEERING -------------------------- #
 
@@ -191,7 +192,7 @@ def downsampling_majority_class(data, class_ratio = 0.05, seed=500):
     print('Minority class is %.2f%% of initial sample size.' % (len(data_minority)/len(data)*100))
 
     # Samples to be drawn
-    len_majority = len(data)*(len(data_minority)/len(data))/class_ratio-len(data_minority)
+    len_majority = math.floor(len(data)*(len(data_minority)/len(data))/class_ratio-len(data_minority))
 
     # Downsample
     data_majority_downsampled = resample(data_majority,
@@ -200,13 +201,56 @@ def downsampling_majority_class(data, class_ratio = 0.05, seed=500):
                                          random_state=seed)
 
     # Combine minority class with downsampled majority class
-    df_downsampled = pd.concat([data_majority, data_majority_downsampled])
+    df_downsampled = pd.concat([data_minority, data_majority_downsampled])
 
     # Display new class counts
     print('New dataset has following sizes for each class:')
     print(df_downsampled.click.value_counts())
     print('Minority class is %.2f%% of total sample size.' % (len(data_minority)/len(df_downsampled)*100))
 
-    return df_upsampled
+    return df_downsampled
 
+
+# --- TEST THE PREDICTION ERROR WITH VARIOUS LEVELS OF DOWN-SAMPLING --- #
+def test_downsampling(train, validation, prediction_model, minority_levels=np.linspace(0.005, 0.1, 20),
+                      model_type='ERF', random_seed=500, to_plot = 'yes'):
+    # Initialise output
+    colnames = ['model', 'minority_level', 'AUC']
+    output = pd.DataFrame(index=range(len(minority_levels)), columns=colnames)
+    output['model'] = model_type
+
+    for i,j in zip(minority_levels, range(0,len(minority_levels))):
+
+        print('Testing %s%% case.' % (i*100))
+
+        # Time it
+        start_time = time.time()
+
+        # Refit the model
+        new_data = downsampling_majority_class(train1, class_ratio=i, seed=random_seed)
+        refitted_model = prediction_model.fit(new_data.drop(['click', 'bidprice', 'payprice'], axis=1).values,
+                                              new_data['click'].values)
+
+        # Make prediction
+        prediction = refitted_model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+
+        # Populate output dataframe
+        output['minority_level'][j] = i
+        output['AUC'][j] = roc_auc_score(validation1['click'].values, prediction[:,1])
+
+    print("Evaluation for %s type model finished in %.2f mins." % (type, (time.time() - start_time)))
+
+    if to_plot == 'yes':
+
+        # Title and format
+        plot_title = 'Sensitivity Analysis of Downsampling (Using %s Model)' %(model_type)
+        plt.style.use("seaborn-darkgrid")
+
+        # Plot ROC curve
+        plt.plot(output.minority_level*100, output.AUC)
+        plt.xlabel('Percentage of Samples from Minority Class')
+        plt.ylabel('AUC')
+        plt.title(plot_title)
+
+    return output
 ############################## END ##################################
