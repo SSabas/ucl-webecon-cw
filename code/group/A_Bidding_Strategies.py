@@ -24,6 +24,10 @@ Date:
 import pandas as pd
 import numpy as np
 import time
+from scipy.interpolate import griddata
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.cm as cm
+
 
 
 # --------------------------------- FITTING --------------------------------------- #
@@ -146,9 +150,6 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=625000):
     return impressions, clicks, ads_auctioned
 
 
-ORTB_strategy(data, prediction, type = 'ORTB2', c=50, b=1, budget=625000)
-
-
 # --- Evaluate Strategies Using Different Parameter Combinations
 def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 625000,
                         only_best = 'no', to_plot = 'yes', plot_3d = 'no', repeated_runs = 1):
@@ -164,7 +165,9 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
 
     for i, parameter in zip(range(len(parameter_range)), parameter_range):
 
-        if len(parameter_range[0]) == 1:
+        print(i, parameter)
+
+        if parameter_range[0].size == 1:
             output['parameter_1'][i] = parameter
 
         else:
@@ -227,21 +230,21 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
         if plot_3d == 'yes':
 
             # Get the grid for clicks
-            x1_clicks = np.linspace(results['parameter_1'].min(), results['parameter_1'].max(),
-                             len(results['parameter_1'].unique()))
-            y1_clicks = np.linspace(results['parameter_2'].min(), results['parameter_2'].max(),
-                             len(results['parameter_2'].unique()))
+            x1_clicks = np.linspace(output['parameter_1'].min(), output['parameter_1'].max(),
+                             len(output['parameter_1'].unique()))
+            y1_clicks = np.linspace(output['parameter_2'].min(), output['parameter_2'].max(),
+                             len(output['parameter_2'].unique()))
             x2_clicks, y2_clicks = np.meshgrid(x1_clicks, y1_clicks)
-            z2_clicks = griddata((results['parameter_1'], results['parameter_2']), results['clicks_won'], (x2_clicks, y2_clicks),
+            z2_clicks = griddata((output['parameter_1'], output['parameter_2']), output['clicks_won'], (x2_clicks, y2_clicks),
                           method='linear')
 
             # Get the grid for CTR
-            x1_CTR = np.linspace(results['parameter_1'].min(), results['parameter_1'].max(),
-                             len(results['parameter_1'].unique()))
-            y1_CTR = np.linspace(results['parameter_2'].min(), results['parameter_2'].max(),
-                             len(results['parameter_2'].unique()))
+            x1_CTR = np.linspace(output['parameter_1'].min(), output['parameter_1'].max(),
+                             len(output['parameter_1'].unique()))
+            y1_CTR = np.linspace(output['parameter_2'].min(), output['parameter_2'].max(),
+                             len(output['parameter_2'].unique()))
             x2_CTR, y2_CTR = np.meshgrid(x1_CTR, y1_CTR)
-            z2_CTR = griddata((results['parameter_1'], results['parameter_2']), results['CTR'], (x2_CTR, y2_CTR),
+            z2_CTR = griddata((output['parameter_1'], output['parameter_2']), output['CTR'], (x2_CTR, y2_CTR),
                           method='linear')
 
             # Set the parameters for plotting
@@ -260,7 +263,7 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             fig = plt.figure()
             ax = fig.add_subplot(1, 2, 1, projection='3d')
             surf = ax.plot_surface(x2_clicks, y2_clicks, z2_clicks, rstride=1, cstride=1, cmap=cm.Blues,
-                                   linewidth=0, antialiased=False)
+                                   linewidth=0.2, antialiased=False)
 
             ax.set_xlabel('Parameter 1')
             ax.set_ylabel('Parameter 2')
@@ -318,21 +321,25 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
 
     return output
 
-strategy_evaluation(validation1, prediction, parameter_range = np.linspace(200, 325, 100), type = 'random',  budget = 625000,
-                        only_best = 'no', to_plot = 'yes')
-
-strategy_evaluation(validation1, prediction, parameter_range = [[100,400], [200,500]], type = 'random',  budget = 625000,
-                        only_best = 'no', to_plot = 'no', repeated_runs = 20)
-
-strategy_evaluation(validation1, prediction, parameter_range = [[100,400], [200,500]], type = 'random',  budget = 625000,
-                        only_best = 'no', to_plot = 'yes', repeated_runs = 20)
-
-b = np.tile(np.linspace(5e-9, 5e-5, 100), 200)
-a = np.repeat(np.linspace(20, 200, 200), 100)
-
-
-results = strategy_evaluation(validation1, prediction, parameter_range = np.column_stack((a, b)), type = 'ORTB1',  budget = 625000,
-                        only_best = 'no', to_plot = 'yes', plot_3d = 'yes')
+# strategy_evaluation(validation1, prediction, parameter_range = np.linspace(200, 325, 100), type = 'random',  budget = 625000,
+#                         only_best = 'no', to_plot = 'yes')
+#
+#
+# b = np.tile(np.linspace(100, 299, 20), 20)
+# a = np.repeat(np.linspace(300, 700, 20), 20)
+#
+# strategy_evaluation(validation1, prediction, parameter_range = np.column_stack((b, a)), type = 'random',  budget = 625000,
+#                         only_best = 'no', to_plot = 'yes', plot_3d = 'yes', repeated_runs = 5)
+#
+# result = strategy_evaluation(validation1, prediction_proba[:,1], parameter_range = np.array([[100],[110], [120], [200], [300]]), type = 'exponential',  budget = 625000,
+#                         only_best = 'no', to_plot = 'yes', plot_3d = 'yes', repeated_runs = 20)
+#
+# b = np.tile(np.linspace(5e-10, 5e-8, 100), 100)
+# a = np.repeat(np.linspace(0.01, 5, 100), 100)
+#
+#
+# results = strategy_evaluation(validation1, prediction_proba[:,1], parameter_range = np.column_stack((a, b)), type = 'ORTB2',  budget = 625000,
+#                         only_best = 'no', to_plot = 'yes', plot_3d = 'yes')
 
 # --- Max eCPC
 

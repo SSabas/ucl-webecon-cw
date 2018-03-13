@@ -177,4 +177,36 @@ def upsampling_minority_class(data, class_ratio = 0.05, seed=500):
 
     return df_upsampled
 
+
+def downsampling_majority_class(data, class_ratio = 0.05, seed=500):
+
+    # Display old class counts
+    print('The initial dataset has following sizes for each class:')
+    print(data.click.value_counts())
+
+    # Separate majority and minority classes
+    data_majority = data[data.click == 0]
+    data_minority = data[data.click == 1]
+
+    print('Minority class is %.2f%% of initial sample size.' % (len(data_minority)/len(data)*100))
+
+    # Samples to be drawn
+    len_majority = len(data)*(len(data_minority)/len(data))/class_ratio-len(data_minority)
+
+    # Downsample
+    data_majority_downsampled = resample(data_majority,
+                                         replace=False,
+                                         n_samples=len_majority,
+                                         random_state=seed)
+
+    # Combine minority class with downsampled majority class
+    df_downsampled = pd.concat([data_majority, data_majority_downsampled])
+
+    # Display new class counts
+    print('New dataset has following sizes for each class:')
+    print(df_downsampled.click.value_counts())
+    print('Minority class is %.2f%% of total sample size.' % (len(data_minority)/len(df_downsampled)*100))
+
+    return df_upsampled
+
 ############################## END ##################################
