@@ -72,6 +72,10 @@ train2 = downsampling_majority_class(train1, class_ratio=0.05, seed=500)
 
 # ---------------------------- CTR PREDICTION ------------------------------------------ #
 
+
+# Get functions from CTR prediction script
+from C_CTR_Prediction import *
+
 # --- SOME TOGGLES FOR ANALYSIS
 
 run_gridsearch = 'no'
@@ -157,8 +161,25 @@ stacked_classifier, stacked_prediction = stacking_classifier(train2, validation1
                                                                                      'store_train_meta_features': True,
                                                                                      'refit': True})
 
+
+
 # --- COMPARE THE AUC  (PLOT ROC CURVES ON SAME GRAPH) --- #
+plot_ROC_curve(validation1['click'], log_prediction, model='Logistic')
+plot_ROC_curve(validation1['click'], rf_prediction, model='Random Forest')
+plot_ROC_curve(validation1['click'], erf_prediction, model='Extreme Random Forest')
+plot_ROC_curve(validation1['click'], xgb_prediction, model='XGBoost')
+plot_ROC_curve(validation1['click'], svm_prediction, model='SVM')
+plot_ROC_curve(validation1['click'], nb_prediction, model='Naive Bayes')
+plot_ROC_curve(validation1['click'], fm_prediction, model='Factorization Machine')
+plot_ROC_curve(validation1['click'], stacked_prediction, model='Stacked')
+plt.savefig(os.getcwd()+'/results/AUC_comparison.pdf')
+
 
 # ---------------------------- BIDDING STRATEGY ---------------------------------------- #
 
+# Run the grid search for hyperparameters
+# Try the line fitting function
+
+
 # ---------------------------- OUTPUT  ------------------------------------------------- #
+# Output results in csv file compatible with the submission
