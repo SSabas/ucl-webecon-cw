@@ -26,6 +26,7 @@ from sklearn import preprocessing
 from sklearn.utils import resample
 import math
 import time
+import numpy as np
 
 # -------------------- FUNCTIONS FOR FEATURE ENGINEERING -------------------------- #
 
@@ -227,16 +228,16 @@ def test_downsampling(train, validation, prediction_model, minority_levels=np.li
         start_time = time.time()
 
         # Refit the model
-        new_data = downsampling_majority_class(train1, class_ratio=i, seed=random_seed)
+        new_data = downsampling_majority_class(train, class_ratio=i, seed=random_seed)
         refitted_model = prediction_model.fit(new_data.drop(['click', 'bidprice', 'payprice'], axis=1).values,
                                               new_data['click'].values)
 
         # Make prediction
-        prediction = refitted_model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+        prediction = refitted_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
 
         # Populate output dataframe
         output['minority_level'][j] = i
-        output['AUC'][j] = roc_auc_score(validation1['click'].values, prediction[:,1])
+        output['AUC'][j] = roc_auc_score(validation['click'].values, prediction[:,1])
 
     print("Evaluation for %s type model finished in %.2f mins." % (type, (time.time() - start_time)))
 

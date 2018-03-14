@@ -40,11 +40,13 @@ from sklearn.ensemble import RandomForestClassifier
 from fastFM import als
 import scipy.sparse as sp
 from sklearn.externals import joblib
+from sklearn import svm
+import os
 
 # --------------------------------- FITTING --------------------------------------- #
 
 # --- PLOT ROC CURVE
-def plot_ROC_curve(data, prediction, model=None):
+def plot_ROC_curve(data, prediction, model=None, minority_class=None):
     """
     Function to plot the ROC curve with AUC.
     """
@@ -54,19 +56,25 @@ def plot_ROC_curve(data, prediction, model=None):
     roc_auc = roc_auc_score(data, prediction)
 
     if model != None:
-        title = '%s (area = %0.3f)' % (model, roc_auc)
+        label_title = '%s (area = %0.3f)' % (model, roc_auc)
 
     else:
-        title = 'ROC curve (area = %0.3f)' % roc_auc
+        label_title = 'ROC curve (area = %0.3f)' % roc_auc
+
+    if minority_class != None:
+        plot_title = 'Receiver Operating Characteristic (Sample with %.0f%% Minority Class)' %(minority_class*100)
+
+    else:
+        plot_title = 'Receiver Operating Characteristic'
 
     # Plot ROC curve
-    plt.plot(fpr, tpr, label=title)
+    plt.plot(fpr, tpr, label=label_title)
     plt.plot([0, 1], [0, 1], 'k--')  # random predictions curve
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.0])
     plt.xlabel('False Positive Rate or (1 - Specifity)')
     plt.ylabel('True Positive Rate or (Sensitivity)')
-    plt.title('Receiver Operating Characteristic')
+    plt.title(plot_title)
     plt.legend(loc="lower right")
 
 
@@ -598,7 +606,8 @@ def gradient_boosted_trees(train, validation,
                                           , n_estimators=refit_iter
                                           , n_jobs=3
                                           , verbose=10
-                                          , random_state = random_seed)
+                                          , random_state = random_seed
+                                          , silent=False)
 
             # Refit
             model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
@@ -638,7 +647,8 @@ def gradient_boosted_trees(train, validation,
                                           , n_estimators=refit_iter
                                    , n_jobs=3
                                    , verbose=10
-                                          , random_state=random_seed)
+                                          , random_state=random_seed,
+                                          silent=False)
             # Fit the model
             model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1), train['click'])
 
@@ -660,7 +670,8 @@ def gradient_boosted_trees(train, validation,
                                       , n_estimators=refit_iter
                                       , n_jobs=3
                                       , verbose=10
-                                      , random_state=random_seed)
+                                      , random_state=random_seed
+                                      , silent=False)
 
         model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1), train['click'])
         prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
