@@ -68,6 +68,27 @@ def separate_useragent(data):
     return data
 
 
+def slot_price_bucketing(floor_price):
+    """
+    Discretization of floor price
+    """
+
+    if floor_price < 1:
+        return 1
+
+    elif floor_price <= 10:
+        return 2
+
+    elif floor_price <= 50:
+        return 3
+
+    elif floor_price <= 100:
+        return 4
+
+    else:  #[101, infinity]
+        return 5
+
+
 def add_features(data):
     """
     Add new features to the dataset
@@ -76,8 +97,9 @@ def add_features(data):
     # Separate useragent variable
     data = separate_useragent(data)
 
-    # Calculate the area of an advert
-    data['slotarea'] = data['slotwidth'] * data['slotheight']
+    # Create a categorical variable for slot size
+    data['slot_width_height'] = data['slotwidth'].apply(lambda x: str(x)) + "_" + data['slotheight'].apply(lambda x: str(x))
+    data = data.drop(['slotwidth', 'slotheight'], axis=1)
 
     # Add count variables from usertag
     data['usertag'] = data['usertag'].str.split(',')
