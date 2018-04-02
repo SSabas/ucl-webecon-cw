@@ -24,22 +24,35 @@ Date:
 import pandas as pd
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.cm as cm
 
 
+# ----------------------------- BID NORMALISATION --------------------------------- #
+def normalise_bids(prediction, minority_weighting = 0.025):
+    '''
+    Formula (taken from FB paper)
+    '''
+
+    # Normalise the prediction based on the formula above
+
+    output = prediction / (prediction + (1-prediction)/np.repeat(minority_weighting, prediction.shape[0]))
+
+    return output
+
 
 # --------------------------------- FITTING --------------------------------------- #
 
 # --- CONSTANT BIDDING STRATEGY
-def constant_bidding_strategy(data, constant, budget=625000):
+def constant_bidding_strategy(data, constant, budget=6250000):
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < np.repeat(constant, len(data['bidprice']))
+    bids_won = np.array(data['payprice']) < np.repeat(constant, len(data['bidprice']))
 
     # Get cumulative sum conditional on the win
-    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+    bids_won_cumsum = np.cumsum(np.array(data['payprice'])*bids_won)
 
     # Get a boolean vector where bids cumsum is still under budget limit
     valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
@@ -52,16 +65,16 @@ def constant_bidding_strategy(data, constant, budget=625000):
     return impressions, clicks, ads_auctioned
 
 
-def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=625000, seed=500):
+def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=6250000):
 
     # Generate bids
     bids = np.random.randint(lower_bound, upper_bound, len(data))
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < bids
+    bids_won = np.array(data['payprice']) < bids
 
     # Get cumulative sum conditional on the win
-    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+    bids_won_cumsum = np.cumsum(np.array(data['payprice'])*bids_won)
 
     # Get a boolean vector where bids cumsum is still under budget limit
     valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
@@ -75,16 +88,19 @@ def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=625000,
 
 
 # --- pCTR BASED BIDDING STRATEGIES (CRUDE PARAMETER ESTIMATION)
-def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter = 100, budget = 625000):
+def parametrised_bidding_strategy(data, prediction, type='linear', parameter=100, budget=625000,
+                                  average_CTR=None):
 
-    # Compute average CTR as a base metric
-    avgCTR = np.repeat(np.sum(data['click'] == 1) / data.shape[0], prediction.shape[0])
+    if average_CTR == None:
+        avg_CTR = np.repeat(average_CTR, prediction.shape[0])
 
-    # Calculate bids based on the model
+    else:
+        # Calculate bids based on the model
+        avgCTR = np.repeat(np.sum(data['click'] == 1) / data.shape[0], prediction.shape[0])
 
     # For linear model
     if type == 'linear':
-        bids = np.repeat(parameter, prediction.shape[0]) * (np.array(prediction) + avgCTR)
+        bids = np.repeat(parameter, prediction.shape[0]) * (np.array(prediction) / avgCTR)
 
     if type == 'square':
         bids = np.repeat(parameter, prediction.shape[0]) * (np.array(prediction) / avgCTR) ** 2
@@ -93,10 +109,10 @@ def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter =
         bids = np.repeat(parameter, prediction.shape[0]) * np.exp(np.array(prediction) / avgCTR)
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < bids
+    bids_won = np.array(data['payprice']) < bids
 
     # Get cumulative sum conditional on the win
-    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+    bids_won_cumsum = np.cumsum(np.array(data['payprice'])*bids_won)
 
     # Get a boolean vector where bids cumsum is still under budget limit
     valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
@@ -110,7 +126,7 @@ def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter =
 
 
 # --- Optimal Real Time Bidding (ORTB)
-def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=625000):
+def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=6250000, average_CTR=7.375623e-04):
 
     """
     ORTB1 formula:
@@ -127,17 +143,25 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=625000):
     if type == 'ORTB1':
         bids = np.sqrt(np.repeat(c, size) / np.repeat(b, size) * np.array(prediction) + np.repeat(c, size) ** 2) \
                - np.repeat(c, size)
+
+    elif type == 'ORTBx':
+        bids = (np.array(prediction) / np.repeat(average_CTR, size)) ** 2 * c + b
+
+    elif type == 'ORTBy':
+        bids = (np.array(prediction) / np.repeat(average_CTR, size)) ** 2 * c + (np.array(prediction) /
+                                                                                 np.repeat(average_CTR, size)) * b
+
     else:
         term = (np.array(prediction) + np.sqrt(np.repeat(c, size) ** 2
-                                               * np.repeat(b, size) * 2 + np.repeat(c, size) ** 2)) / \
-               (np.repeat(c, size) * np.repeat(b, size))
-        bids = np.repeat(c, size) * (term ** (1 / 3) - term ** (-1 / 3))
+                                               * np.repeat(b, size) * 2 + np.array(prediction) ** 2)) \
+            / (np.repeat(c, size) * np.repeat(b, size))
+        bids = np.repeat(c, size) * ((term ** (1 / 3)) - (term ** (-1 / 3)))
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < bids
+    bids_won = np.array(data['payprice']) < bids
 
     # Get cumulative sum conditional on the win
-    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+    bids_won_cumsum = np.cumsum(np.array(data['payprice'])*bids_won)
 
     # Get a boolean vector where bids cumsum is still under budget limit
     valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
@@ -151,8 +175,9 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=625000):
 
 
 # --- Evaluate Strategies Using Different Parameter Combinations
-def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 625000,
-                        only_best = 'no', to_plot = 'yes', plot_3d = 'no', repeated_runs = 1):
+def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 6250000,
+                        only_best = 'no', to_plot = 'yes', plot_3d = 'no', repeated_runs = 1,
+                        average_CTR = 7.375623e-04):
 
     # Time it
     start_time = time.time()
@@ -205,7 +230,8 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             output['impressions_won'][i], \
             output['clicks_won'][i], \
             output['ads_auctioned_for'][i] = \
-                ORTB_strategy(data, prediction, type=type, c=parameter[0], b=parameter[1], budget=625000)
+                ORTB_strategy(data, prediction, type=type, c=parameter[0], b=parameter[1], budget=budget,
+                              average_CTR=average_CTR)
 
         else:
 
@@ -213,7 +239,8 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             output['impressions_won'][i], \
             output['clicks_won'][i], \
             output['ads_auctioned_for'][i] = \
-                parametrised_bidding_strategy(data, prediction, type=type, parameter=parameter, budget=budget)
+                parametrised_bidding_strategy(data, prediction, type=type, parameter=parameter, budget=budget,
+                                              average_CTR = average_CTR)
 
     # Fill in last columns
     output['type'] = type
@@ -263,7 +290,7 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             fig = plt.figure()
             ax = fig.add_subplot(1, 2, 1, projection='3d')
             surf = ax.plot_surface(x2_clicks, y2_clicks, z2_clicks, rstride=1, cstride=1, cmap=cm.Blues,
-                                   linewidth=0.2, antialiased=False)
+                                   linewidth=0.01, antialiased=False, edgecolors='grey', alpha=0.8)
 
             ax.set_xlabel('Parameter 1')
             ax.set_ylabel('Parameter 2')
@@ -277,7 +304,7 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             # Plot the second subplot
             ax = fig.add_subplot(1, 2, 2, projection='3d')
             surf = ax.plot_surface(x2_CTR, y2_CTR, z2_CTR, rstride=1, cstride=1, cmap=cm.Reds,
-                                   linewidth=0, antialiased=False)
+                                   linewidth=0.01, antialiased=False, edgecolors='grey', alpha=0.8)
 
             ax.set_xlabel('Parameter 1')
             ax.set_ylabel('Parameter 2')

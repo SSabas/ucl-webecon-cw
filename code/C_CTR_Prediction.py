@@ -41,9 +41,11 @@ from fastFM import als
 import scipy.sparse as sp
 from sklearn.externals import joblib
 from sklearn import svm
+from sknn.mlp import Classifier, Layer
 import os
 
 # --------------------------------- FITTING --------------------------------------- #
+
 
 # --- PLOT ROC CURVE
 def plot_ROC_curve(data, prediction, model=None, minority_class=None):
@@ -62,7 +64,7 @@ def plot_ROC_curve(data, prediction, model=None, minority_class=None):
         label_title = 'ROC curve (area = %0.3f)' % roc_auc
 
     if minority_class != None:
-        plot_title = 'Receiver Operating Characteristic (Sample with %.0f%% Minority Class)' %(minority_class*100)
+        plot_title = 'Receiver Operating Characteristic (Sample with %.1f%% Minority Class)' %(minority_class*100)
 
     else:
         plot_title = 'Receiver Operating Characteristic'
@@ -161,6 +163,7 @@ def logistic_model(train, validation,
 
         else:
             prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+            model = saved_model
     else:
 
         # Fit the model
@@ -252,7 +255,6 @@ def random_forest(train, validation,
                    to_plot ='yes',
                    random_seed = 500):
 
-
     if use_gridsearch == 'yes':
 
         # Create model object
@@ -267,7 +269,6 @@ def random_forest(train, validation,
         print('Best Min Samples Leaf:', model.best_estimator_.get_params()['min_samples_leaf'])
         print('Best Max Features:', model.best_estimator_.get_params()['max_features'])
         print('Best Criterion:', model.best_estimator_.get_params()['criterion'])
-
 
         if refit == 'yes':
 
@@ -324,6 +325,8 @@ def random_forest(train, validation,
 
         else:
             prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+            model = saved_model
+
     else:
 
         # Fit the model
@@ -483,6 +486,8 @@ def extreme_random_forest(train, validation,
 
         else:
             prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+            model = saved_model
+
     else:
 
         # Fit the model
@@ -657,6 +662,8 @@ def gradient_boosted_trees(train, validation,
 
         else:
             prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+            model = saved_model
+
     else:
 
         # Fit the model
@@ -823,6 +830,8 @@ def support_vector_machine(train, validation,
 
         else:
             prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+            model = saved_model
+
     else:
 
         # Fit the model
@@ -1003,6 +1012,8 @@ def KNN(train, validation,
 
         else:
             prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1))
+            model = saved_model
+
     else:
 
         # Fit the model
@@ -1138,6 +1149,8 @@ def factorization_machine(train, validation,
 
         else:
             prediction = saved_model.predict_proba(sparse_validation_X)
+            model = saved_model
+
     else:
 
         # Fit the model
@@ -1196,6 +1209,132 @@ def factorization_machine(train, validation,
 #                    random_seed = 500)
 
 
+# --- NEURAL NETWORK
+def neural_network(train, validation,
+                           parameters={'learning_rate': [0.005, 0.01],
+                                       "learning_momentum": ['0.9'],
+                                       "regularize": ['L2'],
+                                       "dropout_rate": [0.2],
+                                       "batch_size": [1],
+                                       "n_stable": [10],
+                                       "n_iter": [10],
+                                       'hidden0__units': [32, 64],
+                                       'hidden0__type': ["Rectifier"]},
+                   use_gridsearch='yes',
+                   refit='yes',
+                   refit_iter=20,
+                   use_saved_model='no',
+                   save_model='yes',
+                   to_plot='yes',
+                   random_seed=500):
+
+    if use_gridsearch == 'yes':
+
+        # Create layers object
+        nn_layers = [Layer("Rectifier", units=64), Layer("Softmax")]
+
+        # Create model object
+        model = GridSearchCV(sknn.mlp.Classifier(layers=nn_layers, random_state=random_seed),
+                             parameters, cv=3, verbose=10, scoring='roc_auc')
+
+        # Fit the model
+        model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1).values, train['click'].values)
+
+        # View best hyperparameters
+        print('Saved Model Learning Rate:', model.best_estimator_.get_params()['learning_rate'])
+        print('Saved Model Dropout Rate:', model.best_estimator_.get_params()['dropout_rate'])
+        print('Saved Model Batch Size:', model.best_estimator_.get_params()['batch_size'])
+        print('Saved Model Hidden Architecture:', model.best_estimator_.get_params()['layers'])
+        print('Saved Model Learning Momentum:', model.best_estimator_.get_params()['learning_momentum'])
+
+        if refit == 'yes':
+
+            # If refit, run
+            model = sknn.mlp.Classifier(layers=model.best_estimator_.get_params()['layers']
+                                          , learning_rate=model.best_estimator_.get_params()['learning_rate']
+                                        , learning_momentum=model.best_estimator_.get_params()['learning_momentum']
+                                        , dropout_rate=model.best_estimator_.get_params()['dropout_rate']
+                                          , batch_size=model.best_estimator_.get_params()['batch_size']
+                                          , n_iter=refit_iter
+                                          , verbose=10
+                                , random_state = random_seed)
+
+            # Refit
+            model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1).values, train['click'].values)
+
+            # Make prediction
+            prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+
+        else:
+            prediction = model.best_estimator_.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+
+    elif use_saved_model == 'yes':
+
+        # Load from saved files
+        model_filename = os.getcwd() + "/models/nn_model.pkl"
+        saved_model = joblib.load(model_filename)
+
+        # View saved model hyperparameters
+        print('Saved Model Learning Rate:', saved_model.get_params()['learning_rate'])
+        print('Saved Model Dropout Rate:', saved_model.get_params()['dropout_rate'])
+        print('Saved Model Batch Size:', saved_model.get_params()['batch_size'])
+        print('Saved Model Hidden Architecture:', saved_model.get_params()['layers'])
+        print('Saved Model Learning Momentum:', saved_model.get_params()['learning_momentum'])
+
+        if refit == 'yes':
+
+            # If refit, run
+            model = sknn.mlp.Classifier(layers=saved_model.get_params()['layers']
+                                          , learning_rate=saved_model.get_params()['learning_rate']
+                                        , learning_momentum=saved_model.get_params()['learning_momentum']
+                                        , dropout_rate=saved_model.get_params()['dropout_rate']
+                                          , batch_size=saved_model.get_params()['batch_size']
+                                          , n_iter=refit_iter
+                                          , verbose=10
+                                , random_state = random_seed)
+
+            # Fit the model
+            model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1).values, train['click'].values)
+
+            # Make prediction
+            prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+
+        else:
+            prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+            model = saved_model
+
+    else:
+
+        # Fit the model
+        model = sknn.mlp.Classifier(layers=parameters['layers']
+                                    , learning_rate=parameters['learning_rate']
+                                    , learning_momentum=parameters['learning_momentum']
+                                    , dropout_rate=parameters['dropout_rate']
+                                    , batch_size=parameters['batch_size']
+                                    , n_iter=refit_iter
+                                    , verbose=10
+                                    , random_state=random_seed)
+
+        model = model.fit(train.drop(['click','bidprice', 'payprice'], axis=1).values, train['click'].values)
+        prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+
+    # Print scores
+    print("AUC: %0.5f for Neural Network Model"% (roc_auc_score(validation['click'], prediction[:, 1])))
+
+    # Whether to save the model
+    if save_model == 'yes':
+
+        print('Saving the neural network to the disc.')
+        model_filename = os.getcwd() + "/models/nn_model.pkl"
+        joblib.dump(model, model_filename, compress=9)
+
+    if to_plot == 'yes':
+
+        plot_ROC_curve(validation['click'], prediction[:, 1])
+
+    return model, prediction[:,1]
+
+
 # --- STACKING
 def stacking_classifier(train, validation, refit = 'yes', use_saved_model = 'no', save_model = 'yes', to_plot ='yes',
                         meta_leaner_parameters={'max_depth':20, "n_estimators":20, "learning_rate":0.05,
@@ -1236,6 +1375,10 @@ def stacking_classifier(train, validation, refit = 'yes', use_saved_model = 'no'
         model_filename = os.getcwd() + "/models/nb_model.pkl"
         nb_model = joblib.load(model_filename)
 
+        # Neural Network
+        model_filename = os.getcwd() + "/models/nn_model.pkl"
+        nn_model = joblib.load(model_filename)
+
         meta_learner = xgboost.XGBClassifier(max_depth=meta_leaner_parameters['max_depth'],
                                              n_estimators=meta_leaner_parameters['n_estimators'],
                                              learning_rate=meta_leaner_parameters['learning_rate'],
@@ -1249,14 +1392,14 @@ def stacking_classifier(train, validation, refit = 'yes', use_saved_model = 'no'
                                              reg_lambda=meta_leaner_parameters['reg_lambda'],
                                              random_state = meta_leaner_parameters['random_state'])
 
-        model = StackingCVClassifier(classifiers=[log_model, rf_model, erf_model, xgb_model, svm_model, nb_model],
+        model = StackingCVClassifier(classifiers=[nn_model, rf_model, erf_model, xgb_model],
                                     meta_classifier=meta_learner, use_probas=stacking_cv_parameters['use_probas'],
                                     use_features_in_secondary = stacking_cv_parameters['use_features_in_secondary'],
                                     store_train_meta_features=stacking_cv_parameters['store_train_meta_features'],
                                     cv = stacking_cv_parameters['cv'])
 
-        model = model.fit(train2.drop(['click', 'bidprice', 'payprice'], axis=1).values, train2['click'].values)
-        prediction = model.predict_proba(validation1.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+        model = model.fit(train.drop(['click', 'bidprice', 'payprice'], axis=1).values, train['click'].values)
+        prediction = model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
 
     else:
 
@@ -1274,6 +1417,8 @@ def stacking_classifier(train, validation, refit = 'yes', use_saved_model = 'no'
 
         else:
             prediction = saved_model.predict_proba(validation.drop(['click', 'bidprice', 'payprice'], axis=1).values)
+            model = saved_model
+
 
     # Whether to save the model
     if save_model == 'yes':
