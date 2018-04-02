@@ -92,7 +92,7 @@ def parametrised_bidding_strategy(data, prediction, type='linear', parameter=100
                                   average_CTR=None):
 
     if average_CTR == None:
-        avg_CTR = np.repeat(average_CTR, prediction.shape[0])
+        avgCTR = np.repeat(average_CTR, prediction.shape[0])
 
     else:
         # Calculate bids based on the model
@@ -330,16 +330,22 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             ax1.set_xlabel('Model Parameter')
             ax1.set_ylabel('Clicks Won', color='royalblue')
             ax1.set_title(plot_title, fontsize=12)
-            ax1.axvline(x=output.parameter_1[output.clicks_won.argmax()],
-                        ymax=1, linewidth=1, color='royalblue', linestyle='--',
-                        label='Parameter with Max Clicks')
+            ax1.vlines(x=output.parameter_1[output.clicks_won.argmax()], ymin=0,
+                       ymax=output.clicks_won[output.clicks_won.argmax()], linewidth=1, color='royalblue', linestyle='--',
+                       label='Parameter with Max Clicks')
+            ax1.hlines(xmin=output.parameter_1[output.parameter_1.argmin()], xmax=output.parameter_1[output.clicks_won.argmax()],
+                       y=output.clicks_won[output.clicks_won.argmax()], linewidth=1, color='royalblue', linestyle='--',
+                       label='Parameter with Max Clicks')
 
             ax2 = ax1.twinx()
             ax2.plot(output.parameter_1, output.CTR, marker='s', markersize =2, color='darkred', label='CTR')
             ax2.set_ylabel('CTR', color='darkred')
-            ax2.axvline(x=output.parameter_1[output.CTR.argmax()],
-                        ymax=1, linewidth=1, color='darkred', linestyle='--',
-                        label='Parameter with Max CTR')
+            ax2.vlines(x=output.parameter_1[output.CTR.argmax()], ymin=0,
+                       ymax=output.CTR[output.CTR.argmax()], linewidth=1, color='darkred', linestyle='--',
+                       label='Parameter with Max CTR')
+            ax1.hlines(xmin=output.parameter_1[output.parameter_1.argmin()], xmax=output.parameter_1[output.CTR.argmax()],
+                       y=output.CTR[output.CTR.argmax()], linewidth=1, color='darkred', linestyle='--',
+                       label='Parameter with Max CTR')
 
             lines = ax1.get_lines() + ax2.get_lines()
             ax1.legend(lines, [line.get_label() for line in lines], loc='best', frameon=True)
