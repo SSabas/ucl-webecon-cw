@@ -24,16 +24,29 @@ Date:
 import pandas as pd
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.cm as cm
 
 
+# ----------------------------- BID NORMALISATION --------------------------------- #
+def normalise_bids(prediction, minority_weighting = 0.025):
+    '''
+    Formula (taken from FB paper)
+    '''
+
+    # Normalise the prediction based on the formula above
+
+    output = prediction / (prediction + (1-prediction)/np.repeat(minority_weighting, prediction.shape[0]))
+
+    return output
+
 
 # --------------------------------- FITTING --------------------------------------- #
 
 # --- CONSTANT BIDDING STRATEGY
-def constant_bidding_strategy(data, constant, budget=625000):
+def constant_bidding_strategy(data, constant, budget=6250000):
 
     # Get boolean vector of the bids won
     bids_won = np.array(data['bidprice']) < np.repeat(constant, len(data['bidprice']))
@@ -52,7 +65,7 @@ def constant_bidding_strategy(data, constant, budget=625000):
     return impressions, clicks, ads_auctioned
 
 
-def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=625000, seed=500):
+def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=6250000):
 
     # Generate bids
     bids = np.random.randint(lower_bound, upper_bound, len(data))
