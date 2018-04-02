@@ -38,14 +38,14 @@ pd.set_option('display.expand_frame_repr', False)
 pd.set_option('display.max_columns', 15)
 
 # --- SOME TOGGLES FOR ANALYSIS
-
 run_gridsearch = 'no' #'no'
 use_saved_model = 'yes' #'no'
 save_model = 'no'
-refit = 'no'
+refit = 'yes'
 to_plot = 'no'
 minority_class = 0.025
 random_seed = 500
+budget = 6250000
 
 # --------------------------------- GET DATA -------------------------------------- #
 
@@ -173,9 +173,9 @@ nn_classifier, nn_prediction = neural_network(train2, validation1, parameters={'
                                               random_seed=500)
 
 # --- STACKING MODEL --- #
-stacked_classifier, stacked_prediction = stacking_classifier(train2, validation1, refit=refit, use_saved_model=use_saved_model,
-                                                             save_model=save_model, to_plot=to_plot,
-                                                             meta_leaner_parameters={'max_depth': 3, "n_estimators": 50,
+stacked_classifier, stacked_prediction = stacking_classifier(train2, validation1, refit='yes', use_saved_model='no',
+                                                             save_model='no', to_plot='yes',
+                                                             meta_leaner_parameters={'max_depth': 3, "n_estimators": 100,
                                                                                      "learning_rate": 0.1,
                                                                                      'silent': False, 'n_jobs': 3,
                                                                                      'subsample': 1,
@@ -185,11 +185,11 @@ stacked_classifier, stacked_prediction = stacking_classifier(train2, validation1
                                                                                      'reg_alpha': 1,
                                                                                      'reg_lambda': 0.8,
                                                                                      'random_state': random_seed},
-                                                             stacking_cv_parameters={'use_probas': False,
-                                                                                     'use_features_in_secondary': True,
+                                                             stacking_cv_parameters={'use_probas': True,
+                                                                                     'use_features_in_secondary': False,
                                                                                      'cv': 5,
                                                                                      'store_train_meta_features': False,
-                                                                                     'refit': True})
+                                                                                     'refit': False})
 
 
 
@@ -212,51 +212,67 @@ top_prediction = xgb_prediction
 # ---------------------------- TEST DOWNSAMPLING EFFECT ---------------------------------------- #
 
 downsampling_sensitivity = test_downsampling(train1, validation1, top_classifier,
-                                             minority_levels=np.linspace(0.005, 0.2, 10),
+                                             minority_levels=np.linspace(0.005, 0.2, 20),
                                              model_type='Stacked', random_seed=500)
-plt.savefig(os.getcwd()+'/results/downsizing_sensitivity_new.pdf')
+plt.savefig(os.getcwd()+'/results/downsizing_sensitivity_new2.pdf')
 
 # ---------------------------- BIDDING STRATEGY ---------------------------------------- #
 
 # Get functions from Bidding Strategies script
 from D_Bidding_Strategies import *
 
+# Normalise bids
+top_prediction = normalise_bids(top_prediction, minority_weighting = minority_class)
+
 # Run the grid search for hyperparameters
 
 # --- CONSTANT BIDDING --- #
-constant_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.linspace(20, 50000, 1000),
-                                      type='constant', budget=6250000, to_plot='yes')
+constant_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.linspace(250, 320, 1000),
+                                      type='constant', budget=budget, to_plot='yes') # Takes c. 13 seconds
 
 # --- RANDOM BIDDING --- #
 a = np.tile(np.linspace(100, 299, 50), 50)
 b = np.repeat(np.linspace(300, 700, 50), 50)
 random_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.column_stack((a, b)),
-                                    type='random', budget=, to_plot='yes', plot_3d='yes', repeated_runs=20)
+                                    type='random', budget=budget, to_plot='yes', plot_3d='yes', repeated_runs=20) # Takes 1min
 
 # --- LINEAR BIDDING --- #
-linear_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.linspace(5000, 15000, 1000),
-                                    type='linear', budget=6250000, to_plot='yes')
+linear_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.linspace(100, 200, 1000),
+                                    type='linear', budget=budget, to_plot='yes')
 
 # --- SQUARE BIDDING --- #
-square_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.linspace(0.0001, 0.010, 1000),
-                                    type='square', budget=625000, to_plot='yes')
+square_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.linspace(210, 300, 100),
+                                    type='square', budget=budget, to_plot='yes')
+#square_output.ix[square_output['clicks_won'].argmax()]
 
-# --- EXPONENTIAL BIDDING --- #
-exponential_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.linspace(0.0001, 10, 1000),
-                                    type='exponential', budget=625000, to_plot='yes')
+ --- EXPONENTIAL BIDDING --- #
+exponential_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.linspace(30, 40, 100),
+                                         type='exponential', budget=budget, to_plot='yes')
 
 # --- ORTB1 BIDDING --- #
-b = np.tile(np.linspace(4.6e-7, 5.8e-7, 100), 100)
-a = np.repeat(np.linspace(1, 30, 100), 100)
+b = np.tile(np.linspace(4.6e-7, 5.8e-7, 50), 50)
+a = np.repeat(np.linspace(1, 30, 50), 50)
 ORTB1_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.column_stack((a, b)),
-                                    type='ORTB1', budget=6250000, to_plot='yes', plot_3d='yes')
-
+                                    type='ORTB1', budget=budget, to_plot='yes', plot_3d='yes')
 
 # --- ORTB2 BIDDING --- #
-b = np.tile(np.linspace(5e-7, 6e-6, 100), 100)
-a = np.repeat(np.linspace(1, 30, 100), 100)
+b = np.tile(np.linspace(5e-7, 5.5e-6, 50), 50)
+a = np.repeat(np.linspace(1, 100, 50), 50)
 ORTB2_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.column_stack((a, b)),
-                                    type='ORTB2', budget=6250000, to_plot='yes', plot_3d='yes', repeated_runs=20)
+                                    type='ORTB2', budget=budget, to_plot='yes', plot_3d='yes')
+
+# --- ORTBx BIDDING (quadratic function with two parameters) --- #
+b = np.tile(np.linspace(-30, 30, 70), 70)
+a = np.repeat(np.linspace(220, 280, 70), 70)
+ORTBx_output = strategy_evaluation(validation1, top_prediction, parameter_range=np.column_stack((a, b)),
+                                   type='ORTBx', budget=budget, to_plot='yes', plot_3d='yes',
+                                   average_CTR=7.375623e-04)
+# max(ORTBx_output['clicks_won'])
+# ORTBx_output.ix[ORTBx_output['clicks_won'].argmax()]
+
+# 250 for a and -21 for b in x^2*a + x*b
+# 227 for a and -3 for b in x^2*a + b
+
 
 # ---------------------------- OUTPUT  ------------------------------------------------- #
 
@@ -266,40 +282,40 @@ train_plus_validation = train1.append(validation1)
 train_plus_validation = downsampling_majority_class(train_plus_validation, class_ratio=minority_class, seed=500)
 
 # Refit the model with new training data
-refitted_model = top_classifier.fit(train_plus_validation.drop(['click', 'bidprice', 'payprice'], axis=1).values, train_plus_validation['click'].values)
+refitted_model = top_classifier.fit(train_plus_validation.drop(['click', 'bidprice', 'payprice'], axis=1), train_plus_validation['click'])
 
 # Predict for the testing set using best model (ERF in our case) plus train and validation data together
-test_prediction = refitted_model.predict_proba(test1.drop(['click', 'bidprice', 'payprice'], axis=1).values)[:, 1]
+test_prediction = refitted_model.predict_proba(test1.drop(['click', 'bidprice', 'payprice'], axis=1))[:, 1]
 
+# Normalise
+test_prediction = normalise_bids(test_prediction, minority_weighting = minority_class)
 
+# Use best bidding strategy ORTBx (quadratic with two parameters) to get the bids
+# Get the coefficient of the best model
+parameter_1 = ORTBx_output.ix[ORTBx_output['clicks_won'].idxmax()][2]
+parameter_2 = ORTBx_output.ix[ORTBx_output['clicks_won'].idxmax()][3]
 
-
-# Use best bidding strategy (linear) to get the bids
-# Get the coefficient and avgCTR for best linear model
-linear_parameters = math.floor(linear_output.ix[linear_output['clicks_won'].idxmax()][2])
+# Get average CTR
 train_plus_validation_full = train.append(validation)
 avgCTR = np.repeat(np.sum(train_plus_validation_full['click'] == 1) / train_plus_validation_full.shape[0], test_prediction.shape[0])
+# avgCTR = 7.375623e-04 # from training set
 
 # Get bid prices
-bids = np.repeat(linear_parameters*1.1, test_prediction.shape[0]) * (np.array(test_prediction) + avgCTR)
+bids =  (np.array(test_prediction) / np.repeat(avgCTR, test_prediction.shape[0])) ** 2 * parameter_1 + parameter_2
+#np.repeat(linear_parameters*1.1, test_prediction.shape[0]) * (np.array(test_prediction) + avgCTR)
 
 # Output results in csv file compatible with the submission
-bids= optimal_bids
 submission = pd.DataFrame(np.asarray([np.array(test.bidid), bids]).T, columns=['bidid', 'bidprice'])
-
-
-submission = pd.DataFrame(np.asarray([np.array(test.bidid), np.array(bids)]).T, columns=['bidid', 'bidprice'])
-
-
-submission.to_csv(os.getcwd()+"/results/testing_bidding_price_new.csv", index=False)
-
-submission.to_csv(os.getcwd()+"/results/testing_bidding_price_new2.csv", index=False)
+submission.to_csv(os.getcwd()+"/results/testing_bidding_price_new_multi.csv", index=False)
 
 # Submit electronically
-# curl http://deepmining.cs.ucl.ac.uk/api/upload/wining_criteria_1/92ZX62SoMlVG -X Post -F 'file=@/Users/ssabas/Desktop/ucl-webecon/results/testing_bidding_price_new2.csv'
+# curl http://deepmining.cs.ucl.ac.uk/api/upload/wining_criteria_1/92ZX62SoMlVG -X Post -F 'file=@/Users/ssabas/Desktop/ucl-webecon/results/testing_bidding_price_new4.csv'
+# curl http://deepmining.cs.ucl.ac.uk/api/upload/wining_criteria_2/92ZX62SoMlVG -X Post -F 'file=@/Users/ssabas/Desktop/ucl-webecon/results/testing_bidding_price_new_multi.csv'
 
 ####################### END ########################
-
-submission = pd.read_csv((os.getcwd()+"/results/testing_bidding_price_new.csv")
-
-submission['bidprice'] = submission['bidprice']*1.3
+#
+# submission = pd.read_csv((os.getcwd()+"/results/testing_bidding_price_new.csv"))
+#
+# submission['bidprice'] = submission['bidprice']*1.125
+#
+# submission.to_csv(os.getcwd()+"/results/testing_bidding_price_new4.csv", index=False)
