@@ -97,7 +97,7 @@ def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter =
 
     # For linear model
     if type == 'linear':
-        bids = np.repeat(parameter, prediction.shape[0]) * (np.array(prediction) + avgCTR)
+        bids = np.repeat(parameter, prediction.shape[0]) * (np.array(prediction) / avgCTR)
 
     if type == 'square':
         bids = np.repeat(parameter, prediction.shape[0]) * (np.array(prediction) / avgCTR) ** 2
@@ -123,7 +123,7 @@ def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter =
 
 
 # --- Optimal Real Time Bidding (ORTB)
-def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=625000):
+def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=6250000):
 
     """
     ORTB1 formula:
@@ -142,8 +142,8 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=625000):
                - np.repeat(c, size)
     else:
         term = (np.array(prediction) + np.sqrt(np.repeat(c, size) ** 2
-                                               * np.repeat(b, size) * 2 + np.repeat(c, size) ** 2)) / \
-               (np.repeat(c, size) * np.repeat(b, size))
+                                               * np.repeat(b, size) * 2 + np.array(prediction) ** 2)) \
+            / (np.repeat(c, size) * np.repeat(b, size))
         bids = np.repeat(c, size) * (term ** (1 / 3) - term ** (-1 / 3))
 
     # Get boolean vector of the bids won
@@ -164,7 +164,7 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=625000):
 
 
 # --- Evaluate Strategies Using Different Parameter Combinations
-def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 625000,
+def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 6250000,
                         only_best = 'no', to_plot = 'yes', plot_3d = 'no', repeated_runs = 1):
 
     # Time it
@@ -218,7 +218,7 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             output['impressions_won'][i], \
             output['clicks_won'][i], \
             output['ads_auctioned_for'][i] = \
-                ORTB_strategy(data, prediction, type=type, c=parameter[0], b=parameter[1], budget=625000)
+                ORTB_strategy(data, prediction, type=type, c=parameter[0], b=parameter[1], budget=budget)
 
         else:
 
@@ -276,7 +276,7 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             fig = plt.figure()
             ax = fig.add_subplot(1, 2, 1, projection='3d')
             surf = ax.plot_surface(x2_clicks, y2_clicks, z2_clicks, rstride=1, cstride=1, cmap=cm.Blues,
-                                   linewidth=0.2, antialiased=False)
+                                   linewidth=0.01, antialiased=False, edgecolors='grey', alpha=0.8)
 
             ax.set_xlabel('Parameter 1')
             ax.set_ylabel('Parameter 2')
@@ -290,7 +290,7 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             # Plot the second subplot
             ax = fig.add_subplot(1, 2, 2, projection='3d')
             surf = ax.plot_surface(x2_CTR, y2_CTR, z2_CTR, rstride=1, cstride=1, cmap=cm.Reds,
-                                   linewidth=0, antialiased=False)
+                                   linewidth=0.01, antialiased=False, edgecolors='grey', alpha=0.8)
 
             ax.set_xlabel('Parameter 1')
             ax.set_ylabel('Parameter 2')
