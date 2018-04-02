@@ -88,12 +88,15 @@ def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=6250000
 
 
 # --- pCTR BASED BIDDING STRATEGIES (CRUDE PARAMETER ESTIMATION)
-def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter = 100, budget = 625000):
+def parametrised_bidding_strategy(data, prediction, type='linear', parameter=100, budget=625000,
+                                  average_CTR=None):
 
-    # Compute average CTR as a base metric
-    avgCTR = np.repeat(np.sum(data['click'] == 1) / data.shape[0], prediction.shape[0])
+    if average_CTR == None:
+        avg_CTR = np.repeat(average_CTR, prediction.shape[0])
 
-    # Calculate bids based on the model
+    else:
+        # Calculate bids based on the model
+        avgCTR = np.repeat(np.sum(data['click'] == 1) / data.shape[0], prediction.shape[0])
 
     # For linear model
     if type == 'linear':
@@ -123,7 +126,7 @@ def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter =
 
 
 # --- Optimal Real Time Bidding (ORTB)
-def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=6250000):
+def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=6250000, average_CTR=7.375623e-04):
 
     """
     ORTB1 formula:
@@ -140,6 +143,14 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=6250000):
     if type == 'ORTB1':
         bids = np.sqrt(np.repeat(c, size) / np.repeat(b, size) * np.array(prediction) + np.repeat(c, size) ** 2) \
                - np.repeat(c, size)
+
+    elif type == 'ORTBx':
+        bids = (np.array(prediction) / np.repeat(average_CTR, size)) ** 2 * c + b
+
+    elif type == 'ORTBy':
+        bids = (np.array(prediction) / np.repeat(average_CTR, size)) ** 2 * c + (np.array(prediction) /
+                                                                                 np.repeat(average_CTR, size)) * b
+
     else:
         term = (np.array(prediction) + np.sqrt(np.repeat(c, size) ** 2
                                                * np.repeat(b, size) * 2 + np.array(prediction) ** 2)) \
@@ -165,7 +176,8 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=6250000):
 
 # --- Evaluate Strategies Using Different Parameter Combinations
 def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 6250000,
-                        only_best = 'no', to_plot = 'yes', plot_3d = 'no', repeated_runs = 1):
+                        only_best = 'no', to_plot = 'yes', plot_3d = 'no', repeated_runs = 1,
+                        average_CTR = 7.375623e-04):
 
     # Time it
     start_time = time.time()
@@ -218,7 +230,8 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             output['impressions_won'][i], \
             output['clicks_won'][i], \
             output['ads_auctioned_for'][i] = \
-                ORTB_strategy(data, prediction, type=type, c=parameter[0], b=parameter[1], budget=budget)
+                ORTB_strategy(data, prediction, type=type, c=parameter[0], b=parameter[1], budget=budget,
+                              average_CTR=average_CTR)
 
         else:
 
@@ -226,7 +239,8 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
             output['impressions_won'][i], \
             output['clicks_won'][i], \
             output['ads_auctioned_for'][i] = \
-                parametrised_bidding_strategy(data, prediction, type=type, parameter=parameter, budget=budget)
+                parametrised_bidding_strategy(data, prediction, type=type, parameter=parameter, budget=budget,
+                                              average_CTR = average_CTR)
 
     # Fill in last columns
     output['type'] = type
