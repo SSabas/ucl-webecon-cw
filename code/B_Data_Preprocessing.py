@@ -24,9 +24,11 @@ Date:
 import pandas as pd
 from sklearn import preprocessing
 from sklearn.utils import resample
+from sklearn.metrics import roc_auc_score
 import math
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 
 # -------------------- FUNCTIONS FOR FEATURE ENGINEERING -------------------------- #
 
