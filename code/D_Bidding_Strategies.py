@@ -49,10 +49,10 @@ def normalise_bids(prediction, minority_weighting = 0.025):
 def constant_bidding_strategy(data, constant, budget=6250000):
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < np.repeat(constant, len(data['bidprice']))
+    bids_won = np.array(data['payprice']) < np.repeat(constant, len(data['bidprice']))
 
     # Get cumulative sum conditional on the win
-    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+    bids_won_cumsum = np.cumsum(np.array(data['payprice'])*bids_won)
 
     # Get a boolean vector where bids cumsum is still under budget limit
     valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
@@ -71,10 +71,10 @@ def random_bidding_strategy(data, lower_bound=0, upper_bound=400, budget=6250000
     bids = np.random.randint(lower_bound, upper_bound, len(data))
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < bids
+    bids_won = np.array(data['payprice']) < bids
 
     # Get cumulative sum conditional on the win
-    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+    bids_won_cumsum = np.cumsum(np.array(data['payprice'])*bids_won)
 
     # Get a boolean vector where bids cumsum is still under budget limit
     valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
@@ -106,10 +106,10 @@ def parametrised_bidding_strategy(data, prediction, type = 'linear', parameter =
         bids = np.repeat(parameter, prediction.shape[0]) * np.exp(np.array(prediction) / avgCTR)
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < bids
+    bids_won = np.array(data['payprice']) < bids
 
     # Get cumulative sum conditional on the win
-    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+    bids_won_cumsum = np.cumsum(np.array(data['payprice'])*bids_won)
 
     # Get a boolean vector where bids cumsum is still under budget limit
     valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
@@ -144,13 +144,13 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=6250000):
         term = (np.array(prediction) + np.sqrt(np.repeat(c, size) ** 2
                                                * np.repeat(b, size) * 2 + np.array(prediction) ** 2)) \
             / (np.repeat(c, size) * np.repeat(b, size))
-        bids = np.repeat(c, size) * (term ** (1 / 3) - term ** (-1 / 3))
+        bids = np.repeat(c, size) * ((term ** (1 / 3)) - (term ** (-1 / 3)))
 
     # Get boolean vector of the bids won
-    bids_won = np.array(data['bidprice']) < bids
+    bids_won = np.array(data['payprice']) < bids
 
     # Get cumulative sum conditional on the win
-    bids_won_cumsum = np.cumsum(np.array(data['bidprice'])*bids_won)
+    bids_won_cumsum = np.cumsum(np.array(data['payprice'])*bids_won)
 
     # Get a boolean vector where bids cumsum is still under budget limit
     valid_bids = bids_won_cumsum <= np.repeat(budget, len(bids_won_cumsum))
