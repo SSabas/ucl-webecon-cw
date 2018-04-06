@@ -27,6 +27,7 @@ import time
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.ticker as mtick
 import matplotlib.cm as cm
 
 
@@ -177,7 +178,7 @@ def ORTB_strategy(data, prediction, type = 'ORTB1', c=50, b=1, budget=6250000, a
 # --- Evaluate Strategies Using Different Parameter Combinations
 def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  budget = 6250000,
                         only_best = 'no', to_plot = 'yes', plot_3d = 'no', repeated_runs = 1,
-                        average_CTR = 7.375623e-04):
+                        average_CTR = 7.375623e-04, to_save='no', file_name='bidding_strategy.pdf'):
 
     # Time it
     start_time = time.time()
@@ -284,96 +285,111 @@ def strategy_evaluation(data, prediction, parameter_range, type = 'linear',  bud
                       'ytick.labelsize': '6'}
 
             plt.rcParams.update(params)
-            plot_title = "Performance evaluation of %s model"%(type)
+            plot_title = "Performance Evaluation of %s Model"%(type)
 
             # Plot the first subplot
-            fig = plt.figure()
-            ax = fig.add_subplot(1, 2, 1, projection='3d')
+            fig = plt.figure(figsize=(3.3*1.2, 2.2*1.2*2))
+            ax = fig.add_subplot(2, 1, 1, projection='3d')
             surf = ax.plot_surface(x2_clicks, y2_clicks, z2_clicks, rstride=1, cstride=1, cmap=cm.Blues,
                                    linewidth=0.01, antialiased=False, edgecolors='grey', alpha=0.8)
 
-            ax.set_xlabel('Parameter 1')
-            ax.set_ylabel('Parameter 2')
-            ax.set_zlabel('Clicks Won')
-            plt.tick_params(axis='both', which='major', labelsize=8)
+            tmp_planes = ax.zaxis._PLANES
+            ax.zaxis._PLANES = (tmp_planes[2], tmp_planes[3],
+                                tmp_planes[0], tmp_planes[1],
+                                tmp_planes[4], tmp_planes[5])
+            view_1 = (25, -135)
+            view_2 = (25, -45)
+            init_view = view_2
+            ax.view_init(*init_view)
+
+            ax.set_xlabel('Parameter 1', fontsize = 6)
+            ax.set_ylabel('Parameter 2', fontsize = 6)
+            ax.zaxis.set_rotate_label(False)
+            ax.set_zlabel('Clicks', fontsize = 6, rotation = 90)
+            plt.tick_params(axis='both', which='major', labelsize=6)
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             ax.yaxis.major.formatter._useMathText = True
             fig.colorbar(surf, shrink=0.5, aspect=10)
-            plt.title('Clicks')
+            plt.title('Clicks', fontsize = 10)
 
             # Plot the second subplot
-            ax = fig.add_subplot(1, 2, 2, projection='3d')
+            ax = fig.add_subplot(2, 1, 2, projection='3d')
             surf = ax.plot_surface(x2_CTR, y2_CTR, z2_CTR, rstride=1, cstride=1, cmap=cm.Reds,
                                    linewidth=0.01, antialiased=False, edgecolors='grey', alpha=0.8)
 
-            ax.set_xlabel('Parameter 1')
-            ax.set_ylabel('Parameter 2')
-            ax.set_zlabel('CTR')
-            plt.tick_params(axis='both', which='major', labelsize=8)
+            tmp_planes = ax.zaxis._PLANES
+            ax.zaxis._PLANES = (tmp_planes[2], tmp_planes[3],
+                                tmp_planes[0], tmp_planes[1],
+                                tmp_planes[4], tmp_planes[5])
+            view_1 = (25, -135)
+            view_2 = (25, -45)
+            init_view = view_2
+            ax.view_init(*init_view)
+
+            ax.set_xlabel('Parameter 1', fontsize = 6)
+            ax.set_ylabel('Parameter 2', fontsize = 6)
+            ax.zaxis.set_rotate_label(False)
+            ax.set_zlabel('CTR', fontsize = 6, rotation = 90)
+            plt.tick_params(axis='both', which='major', labelsize=6)
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             ax.yaxis.major.formatter._useMathText = True
             fig.colorbar(surf, shrink=0.5, aspect=10)
-            plt.title('CTR')
-            plt.suptitle(plot_title, fontsize = 12)
-
-            plt.show()
+            plt.title('CTR', fontsize = 10)
+            plt.subplots_adjust(top=0.94, bottom=0.05, hspace=0.20)
+            plt.suptitle(plot_title, fontsize = 10)
 
         else:
 
             # Set title and style
-            plot_title = "Performance evaluation of %s model"%(type)
+            # plot_title = "Performance evaluation of %s model"%(type)
+            plot_title = "Performance of Linear Bidding Strategy"
             plt.style.use("seaborn-darkgrid")
 
             # Plot bidding performance
             fig, ax1 = plt.subplots()
-            ax1.plot(output.parameter_1, output.clicks_won, marker='o', markersize =2, color = 'royalblue', label='Clicks')
-            ax1.set_xlabel('Model Parameter')
-            ax1.set_ylabel('Clicks Won', color='royalblue')
-            ax1.set_title(plot_title, fontsize=12)
+            ax1.plot(output.parameter_1, output.clicks_won, marker='o', markersize =1, color = 'royalblue', label='Clicks')
+            ax1.set_xlabel('Model Parameter', fontsize = 8)
+            ax1.set_ylabel('Clicks Won', color='royalblue', fontsize = 8)
+            ax1.set_title(plot_title, fontsize=10)
+            ax1.ticklabel_format(fontsize=6)
             ax1.vlines(x=output.parameter_1[output.clicks_won.argmax()], ymin=0,
                        ymax=output.clicks_won[output.clicks_won.argmax()], linewidth=1, color='royalblue', linestyle='--',
                        label='Parameter with Max Clicks')
             ax1.hlines(xmin=output.parameter_1[output.parameter_1.argmin()], xmax=output.parameter_1[output.clicks_won.argmax()],
                        y=output.clicks_won[output.clicks_won.argmax()], linewidth=1, color='royalblue', linestyle='--',
                        label='Parameter with Max Clicks')
+            ax1.set_axisbelow(True) # Push gridlines back
+            ax1.tick_params(axis='x', labelsize=6)
+            ax1.tick_params(axis='y', labelsize=6)
+
 
             ax2 = ax1.twinx()
-            ax2.plot(output.parameter_1, output.CTR, marker='s', markersize =2, color='darkred', label='CTR')
-            ax2.set_ylabel('CTR', color='darkred')
-            ax2.vlines(x=output.parameter_1[output.CTR.argmax()], ymin=0,
-                       ymax=output.CTR[output.CTR.argmax()], linewidth=1, color='darkred', linestyle='--',
-                       label='Parameter with Max CTR')
-            ax1.hlines(xmin=output.parameter_1[output.parameter_1.argmin()], xmax=output.parameter_1[output.CTR.argmax()],
-                       y=output.CTR[output.CTR.argmax()], linewidth=1, color='darkred', linestyle='--',
-                       label='Parameter with Max CTR')
+            ax2.ticklabel_format(style='sci', axis='y', scilimits=(0,0), fontsize=6)
+            ax2.yaxis.offsetText.set_fontsize(6)
+            ax2.tick_params(axis='y', labelsize=8)
+            # ax2.yaxis.set_major_formatter(mtick.ScalarFormatter(useMathText=True))
+            ax2.plot(output.parameter_1, output.CTR, marker='s', markersize =1, color='darkred', label='CTR')
+            ax2.set_ylabel('CTR', color='darkred', fontsize = 8)
+            ax2.set_axisbelow(True)
+            ax2.grid(None)
+
+            # ax2.vlines(x=output.parameter_1[output.CTR.argmax()], ymin=0,
+            #            ymax=output.CTR[output.CTR.argmax()], linewidth=1, color='darkred', linestyle='--',
+            #            label='Parameter with Max CTR')
+            # ax2.hlines(xmin=output.parameter_1[output.parameter_1.argmin()], xmax=output.parameter_1[output.CTR.argmax()],
+            #            y=output.CTR[output.CTR.argmax()], linewidth=1, color='darkred', linestyle='--',
+            #            label='Parameter with Max CTR')
 
             lines = ax1.get_lines() + ax2.get_lines()
-            ax1.legend(lines, [line.get_label() for line in lines], loc='best', frameon=True)
+            ax1.legend(lines, [line.get_label() for line in lines], loc='top right', frameon=True)
 
-            plt.show()
+        if to_save =='yes':
+
+            fig.set_size_inches(3.3*1.2, 2.2*1.2)
+            fig.savefig(os.getcwd() + '/results/' + file_name, dpi=300)
+
+        plt.show()
 
     return output
 
-# strategy_evaluation(validation1, prediction, parameter_range = np.linspace(200, 325, 100), type = 'random',  budget = 625000,
-#                         only_best = 'no', to_plot = 'yes')
-#
-#
-# b = np.tile(np.linspace(100, 299, 20), 20)
-# a = np.repeat(np.linspace(300, 700, 20), 20)
-#
-# strategy_evaluation(validation1, prediction, parameter_range = np.column_stack((b, a)), type = 'random',  budget = 625000,
-#                         only_best = 'no', to_plot = 'yes', plot_3d = 'yes', repeated_runs = 5)
-#
-# result = strategy_evaluation(validation1, prediction_proba[:,1], parameter_range = np.array([[100],[110], [120], [200], [300]]), type = 'exponential',  budget = 625000,
-#                         only_best = 'no', to_plot = 'yes', plot_3d = 'yes', repeated_runs = 20)
-#
-# b = np.tile(np.linspace(5e-10, 5e-8, 100), 100)
-# a = np.repeat(np.linspace(0.01, 5, 100), 100)
-#
-#
-# results = strategy_evaluation(validation1, prediction_proba[:,1], parameter_range = np.column_stack((a, b)), type = 'ORTB2',  budget = 625000,
-#                         only_best = 'no', to_plot = 'yes', plot_3d = 'yes')
-
-# --- Max eCPC
-
-# --- Gate Bidding
+####################### END ########################
