@@ -91,6 +91,18 @@ def slot_price_bucketing(floor_price):
         return 5
 
 
+def slot_width_height_combiner(data):
+    '''
+    Combines width and height metrics
+    '''
+
+    # Create a categorical variable for slot size
+    data['slot_width_height'] = data['slotwidth'].apply(lambda x: str(x)) + "_" + data['slotheight'].apply(lambda x: str(x))
+    data = data.drop(['slotwidth', 'slotheight'], axis=1)
+
+    return data
+
+
 def add_features(data):
     """
     Add new features to the dataset
@@ -100,8 +112,7 @@ def add_features(data):
     data = separate_useragent(data)
 
     # Create a categorical variable for slot size
-    data['slot_width_height'] = data['slotwidth'].apply(lambda x: str(x)) + "_" + data['slotheight'].apply(lambda x: str(x))
-    data = data.drop(['slotwidth', 'slotheight'], axis=1)
+    data = slot_width_height_combiner(data)
 
     # Add count variables from usertag
     data['usertag'] = data['usertag'].str.split(',')
@@ -268,14 +279,18 @@ def test_downsampling(train, validation, prediction_model, minority_levels=np.li
     if to_plot == 'yes':
 
         # Title and format
-        plot_title = 'Sensitivity Analysis of Downsampling (Using %s Model)' %(model_type)
+        plot_title = 'Sensitivity Analysis of Downsampling (Using %s Model)' %('XGBoost')
         plt.style.use("seaborn-darkgrid")
 
         # Plot ROC curve
+        plt.figure(figsize=(3.3 * 1.2, 2.2 * 1.2))
         plt.plot(output.minority_level*100, output.AUC)
-        plt.xlabel('Percentage of Samples from Minority Class')
-        plt.ylabel('AUC')
-        plt.title(plot_title)
+        plt.tick_params(labelsize=6)
+       # fig.set_size_inches(3.3 * 1.2, 2.2 * 1.2)
+        plt.xlabel('% of Samples from Minority Class', fontsize=8)
+        plt.ylabel('AUC', fontsize= 8)
+        plt.title(plot_title, fontsize=10)
+        plt.savefig(os.getcwd() + '/results/downsizing_sensitivity_new3.pdf', dpi=300)
 
     return output
 ############################## END ##################################
