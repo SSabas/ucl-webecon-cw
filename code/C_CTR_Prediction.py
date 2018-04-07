@@ -198,49 +198,6 @@ def logistic_model(train, validation,
 
     return model, prediction[:,1]
 
-# model, prediction = logistic_model(train2, validation1,
-#                    parameters = {'C': 0.1, 'penalty': 'l1', 'class_weight': 'unbalanced', 'solver': 'saga',
-#                                  'tol': 0.01, 'max_iter': 5,'n_jobs': 3},
-#                    use_gridsearch = 'no',
-#                    refit = 'no',
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = logistic_model(train2, validation1,
-#                    parameters = {'C': [1, 2],
-#                   'penalty': ['l1', 'l2'],
-#                   'class_weight': ['unbalanced'],
-#                   'solver': ['saga'],
-#                   'tol': [0.01],
-#                   'max_iter': [3],
-#                                  'n_jobs': [3]},
-#                    use_gridsearch = 'yes',
-#                    refit = 'yes',
-#                    refit_iter = 100,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-#
-# model, prediction = logistic_model(train2, validation1,
-#                    parameters = {'C': [1, 2],
-#                   'penalty': ['l1', 'l2'],
-#                   'class_weight': ['unbalanced'],
-#                   'solver': ['saga'],
-#                   'tol': [0.01],
-#                   'max_iter': [3],
-#                                  'n_jobs': [3]},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 13,
-#                    use_saved_model = 'yes',
-#                    saved_model = model,
-#                    to_plot ='yes',
-#                    random_seed = 500)
-
 
 # --- RANDOM FOREST
 def random_forest(train, validation,
@@ -362,45 +319,6 @@ def random_forest(train, validation,
         plot_ROC_curve(validation['click'], prediction[:, 1])
 
     return model, prediction[:,1]
-
-# model2, prediction = random_forest(train2, validation1,
-#                    parameters = {'max_depth': [10,11,12, None],
-#               'min_samples_split' :[4],
-#               "n_estimators" : [10],
-#               "min_samples_leaf": [1,2,3],
-#               "max_features": ["sqrt"],
-#               "criterion": ['entropy']},
-#                    use_gridsearch = 'yes',
-#                    refit = 'yes',
-#                    refit_iter = 100,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = random_forest(train2, validation1,
-#                    parameters = {'max_depth': None,
-#               'min_samples_split' :4,
-#               "n_estimators" : 10,
-#               "min_samples_leaf": 2,
-#               "max_features": "sqrt",
-#               "criterion": 'entropy'},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 10,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = random_forest(train2, validation1,
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 500,
-#                    use_saved_model = 'yes',
-#                    saved_model = model2,
-#                    to_plot ='yes',
-#                    random_seed = 500)
 
 
 # --- EXTREME RANDOM FOREST
@@ -524,45 +442,6 @@ def extreme_random_forest(train, validation,
 
     return model, prediction[:,1]
 
-
-# model, prediction = extreme_random_forest(train2, validation1,
-#                    parameters = {'max_depth': [10,11,12, None],
-#               'min_samples_split' :[4],
-#               "n_estimators" : [10],
-#               "min_samples_leaf": [1,2,3],
-#               "max_features": ["sqrt"],
-#               "criterion": ['entropy']},
-#                    use_gridsearch = 'yes',
-#                    refit = 'yes',
-#                    refit_iter = 100,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = extreme_random_forest(train2, validation1,
-#                    parameters = {'max_depth': None,
-#               'min_samples_split' :4,
-#               "n_estimators" : 10,
-#               "min_samples_leaf": 2,
-#               "max_features": "sqrt",
-#               "criterion": 'entropy'},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 10,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = extreme_random_forest(train2, validation1,
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 100,
-#                    use_saved_model = 'yes',
-#                    saved_model = model2,
-#                    to_plot ='yes',
-#                    random_seed = 500)
 
 # --- GRADIENT BOOSTED TREES (XGBOOST)
 def gradient_boosted_trees(train, validation,
@@ -704,53 +583,6 @@ def gradient_boosted_trees(train, validation,
     return model, prediction[:,1]
 
 
-# model, prediction = gradient_boosted_trees(train2, validation1,
-#                            parameters={'max_depth': [15, 20],
-#                                        "n_estimators": [2],
-#                                        "learning_rate": [0.05, 0.1],
-#                                        "colsample_bytree": [0.5],
-#                                        "reg_alpha": [0.1],
-#                                        "reg_lambda": [0.1]},
-#                    use_gridsearch = 'yes',
-#                    refit = 'yes',
-#                    refit_iter = 5,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = gradient_boosted_trees(train2, validation1,
-#                            parameters={'max_depth': 20,
-#                                        "n_estimators": 2,
-#                                        "learning_rate": 0.1,
-#                                        "colsample_bytree": 0.5,
-#                                        "reg_alpha": 0.1,
-#                                        "reg_lambda": 0.1,
-#                                        "subsample": 1},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 5,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = gradient_boosted_trees(train2, validation1,
-#                            parameters={'max_depth': 20,
-#                                        "n_estimators": 2,
-#                                        "learning_rate": 0.1,
-#                                        "colsample_bytree": 0.5,
-#                                        "reg_alpha": 0.1,
-#                                        "reg_lambda": 0.1,
-#                                        "subsample": 1},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 5,
-#                    use_saved_model = 'yes',
-#                    saved_model = model,
-#                    to_plot ='yes',
-#                    random_seed = 500)
-
 # --- SUPPORT VECTOR MACHINES
 def support_vector_machine(train, validation,
                            parameters={'C': [0.1, 1, 2],
@@ -867,52 +699,6 @@ def support_vector_machine(train, validation,
         plot_ROC_curve(validation['click'], prediction[:, 1])
 
     return model, prediction[:,1]
-
-# model, prediction = support_vector_machine(train2, validation1,
-#                            parameters={'C': [0.1],
-#                                        "kernel": ['poly', 'rbf'],
-#                                        "degree": [3],
-#                                        "gamma": ['auto'],
-#                                        "tol": [0.001],
-#                                        "max_iter": [10]},
-#                    use_gridsearch = 'yes',
-#                    refit = 'yes',
-#                    refit_iter = 20,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = support_vector_machine(train2, validation1,
-#                            parameters={'C': 0.1,
-#                                        "kernel": 'rbf',
-#                                        "degree": 3,
-#                                        "gamma": 'auto',
-#                                        "tol": 0.001,
-#                                        "max_iter": 10,
-#                                        'probability': True},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 20,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = support_vector_machine(train2, validation1,
-#                            parameters={'C': 0.1,
-#                                        "kernel": 'rbf',
-#                                        "degree": 3,
-#                                        "gamma": 'auto',
-#                                        "tol": 0.001,
-#                                        "max_iter": 10},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    refit_iter = 20,
-#                    use_saved_model = 'yes',
-#                    saved_model = model,
-#                    to_plot ='yes',
-#                    random_seed = 500)
 
 
 # --- NAIVE BAYES
@@ -1039,35 +825,6 @@ def KNN(train, validation,
 
     return model, prediction[:,1]
 
-# KNN(train2, validation1,
-#                            parameters={'n_neighbors': [1, 2,3],
-#                                        "algorithm": ['auto']},
-#                    use_gridsearch = 'yes',
-#                    refit = 'yes',
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = KNN(train, validation,
-#                            parameters={'n_neighbors': 2,
-#                                        "algorithm": 'auto'},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = KNN(train, validation,
-#                            parameters={'n_neighbors': 2,
-#                                        "algorithm": 'auto'},
-#                    use_gridsearch = 'no',
-#                    refit = 'yes',
-#                    use_saved_model = 'yes',
-#                    saved_model = model,
-#                    to_plot ='yes',
-#                    random_seed = 500)
 
 # --- FIELD-AWARE FACTORIZATION MACHINE
 def factorization_machine(train, validation,
@@ -1094,37 +851,6 @@ def factorization_machine(train, validation,
     validation_Y = validation['click']
     validation_Y[validation_Y == 0] = -1
     sparse_validation_X = sp.csc_matrix(validation_X)
-
-    # if use_gridsearch == 'yes':
-    #
-    #     # Create model object
-    #     model = GridSearchCV(als.FMClassification(), parameters, cv=3, scoring = 'roc_auc')
-    #
-    #     # Fit the model
-    #     model = model.fit(sparse_train_X, train_Y)
-    #
-    #     # View best hyperparameters
-    #     print('Best Model Rank:', model.best_estimator_.get_params()['rank'])
-    #     print('Best Model L2 Regularisation Parameter W:', model.best_estimator_.get_params()['l2_reg_w'])
-    #     print('Best Model L2 Regularisation Parameter V:', model.best_estimator_.get_params()['l2_reg_V'])
-    #
-    #     if refit == 'yes':
-    #
-    #         # If refit, run
-    #         model = als.FMClassification(rank=model.best_estimator_.get_params()['n_neighbors']
-    #                                       , l2_reg_w=model.best_estimator_.get_params()['l2_reg_w']
-    #                                      , l2_reg_V = model.best_estimator_.get_params()['l2_reg_V'],
-    #                                      n_iter = refit_iter,
-    #                                      random_state = random_seed)
-    #
-    #         # Refit
-    #         model = model.fit(sparse_train_X, train_Y)
-    #
-    #         # Make prediction
-    #         prediction = model.predict_proba(sparse_validation_X)
-    #
-    #     else:
-    #         prediction = model.best_estimator_.predict_proba(sparse_validation_X)
 
     if use_saved_model == 'yes':
 
@@ -1182,35 +908,6 @@ def factorization_machine(train, validation,
         plot_ROC_curve(validation_Y, prediction)
 
     return model, prediction
-
-
-# model, prediction = factorization_machine(train2, validation1,
-#                            parameters={'init_stdev': 0.1,
-#                                        "rank": 3,
-#                                        'l2_reg_w': 1,
-#                                        'l2_reg_V': 0.5,
-#                                        'n_iter': 10},
-#                  #  use_gridsearch = 'no',
-#                    refit = 'yes',
-#                           refit_iter = 20,
-#                    use_saved_model = 'no',
-#                    saved_model = [],
-#                    to_plot ='yes',
-#                    random_seed = 500)
-#
-# model, prediction = factorization_machine(train2, validation1,
-#                            parameters={'init_stdev': 0.1,
-#                                        "rank": 3,
-#                                        'l2_reg_w': 1,
-#                                        'l2_reg_V': 0.5,
-#                                        'n_iter': 10},
-#                  #  use_gridsearch = 'no',
-#                    refit = 'yes',
-#                           refit_iter = 20,
-#                    use_saved_model = 'yes',
-#                    saved_model = model,
-#                    to_plot ='yes',
-#                    random_seed = 500)
 
 
 # --- NEURAL NETWORK
@@ -1396,7 +1093,7 @@ def stacking_classifier(train, validation, refit = 'yes', use_saved_model = 'no'
                                              reg_lambda=meta_leaner_parameters['reg_lambda'],
                                              random_state = meta_leaner_parameters['random_state'])
 
-        model = StackingCVClassifier(classifiers=[nn_model, rf_model, erf_model, xgb_model],
+        model = StackingCVClassifier(classifiers=[rf_model, erf_model, xgb_model],
                                     meta_classifier=meta_learner, use_probas=stacking_cv_parameters['use_probas'],
                                     use_features_in_secondary = stacking_cv_parameters['use_features_in_secondary'],
                                     store_train_meta_features=stacking_cv_parameters['store_train_meta_features'],
